@@ -87,7 +87,7 @@ class PedestrianLocus(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = PedestrianDataset(["Hand-Walk", "Pocket-Walk"])
+    dataset = PedestrianDataset(["Hand-Walk", "Pocket-Walk"], window_size=200)
 
     for name, locus in dataset:
         print("正在遍历移动轨迹{}... \n".format(name))
