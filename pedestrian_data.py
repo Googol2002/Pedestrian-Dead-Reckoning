@@ -7,7 +7,7 @@ from functools import reduce
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-from torch.utils.data.dataset import T_co
+from geopy.distance import geodesic
 
 with codecs.open(r"config/config.json", 'r', 'utf-8') as config_file:
     config_data = json.load(config_file)
@@ -23,32 +23,36 @@ _scenarios = {scenario: [sample for sample in os.listdir(os.path.join(PEDESTRIAN
 class PedestrianDataset(Iterable):
 
     def __init__(self, scenarios: list, window_size=200):
-        self.locuses = dict()
+        self.loci = dict()
 
         for paths in (zip(_scenarios[s],
                           [os.path.join(PEDESTRIAN_DATA_PATH, s, f) for f in _scenarios[s]])
                       for s in scenarios):
             for k, path in paths:
-                self.locuses[k] = PedestrianLocus(path, window_size)
+                self.loci[k] = PedestrianLocus(path, window_size)
 
     def __len__(self):
-        return len(self.locuses)
+        return len(self.loci)
 
     def __getitem__(self, index):
-        return self.locuses[index]
+        return self.loci[index]
 
     def __iter__(self):
-        return ((k, v) for k, v in self.locuses.items())
+        return ((k, v) for k, v in self.loci.items())
 
 
 class PedestrianLocus(Dataset):
 
     def __init__(self, path, window_size, approximately_match=True):
         # 第一个的时间戳将作为最终的时间戳
-        x_frame_names = ["Accelerometer", "Gyroscope",
-                         "Magnetometer", "Linear Acceleration"]
+        x_sub_frame_names = [("Accelerometer", "Accelerometer"),
+                             ("Gyroscope", "Gyroscope"),
+                             ("Magnetometer", "Magnetometer"),
+                             ("Linear Acceleration", "Linear Acceleration"),
+                             ("Linear Acceleration", "Linear Accelerometer")]
 
-        x_sub_frames = {f: pd.read_csv(os.path.join(path, f) + ".csv", encoding="utf-8") for f in x_frame_names}
+        x_sub_frames = {frame_name: pd.read_csv(os.path.join(path, file_name) + ".csv", encoding="utf-8") for frame_name, file_name
+                        in x_sub_frame_names if os.path.exists(os.path.join(path, file_name) + ".csv")}
         self.y_frame = pd.read_csv(os.path.join(path, "Location.csv"), encoding="utf-8")
         self.window_size = window_size
 
@@ -58,6 +62,10 @@ class PedestrianLocus(Dataset):
         else:
             self.x_frame = reduce(lambda left, right: pd.merge(left, right, on="Time (s)", how="inner"),
                                   x_sub_frames.values())
+
+        # TODO: 增加一个平面辅助坐标系
+        # self.y_frame["relative_x (m)"] = geodesic((self.y_frame[][0], self.y_frame[][0]),
+        #                                           (self.y_frame[][i], self.y_frame[pred.columns[2]][i])).meters
 
         time_table = pd.DataFrame({"Time (s)": self.x_frame["Time (s)"],
                                    "nearest_time": self.x_frame["Time (s)"]})
