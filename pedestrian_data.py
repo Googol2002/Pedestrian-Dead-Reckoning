@@ -53,7 +53,7 @@ class PedestrianLocus(Dataset):
 
         x_sub_frames = {frame_name: pd.read_csv(os.path.join(path, file_name) + ".csv", encoding="utf-8") for frame_name, file_name
                         in x_sub_frame_names if os.path.exists(os.path.join(path, file_name) + ".csv")}
-        # 某些传感器会出现相同列名，这里增加前缀
+        # 某些同学手机传感器数据文件列名有重名现象，适配了这一情况
         for frame_name, frame in x_sub_frames.items():
             frame.columns = map(
                 lambda col_name: "{}.{}".format(frame_name, col_name) if col_name != "Time (s)" else "Time (s)",
