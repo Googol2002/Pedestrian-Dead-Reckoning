@@ -106,11 +106,11 @@ if __name__ == "__main__":
     for name, locus in dataset:
         print("正在遍历移动轨迹{}... \n".format(name))
 
-        for sample in locus:
-            for k, v in sample.items():
-                print(k + ":" + str(v.shape))
-            break
-
-        print(locus.columns_info())
-        break
+        # for sample in locus:
+        #     for k, v in sample.items():
+        #         print(k + ":" + str(v.shape))
+        #     break
+        #
+        # print(locus.columns_info())
+        # break
 
