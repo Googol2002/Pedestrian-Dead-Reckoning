@@ -23,14 +23,14 @@ _scenarios = {scenario: [sample for sample in os.listdir(os.path.join(PEDESTRIAN
 
 class PedestrianDataset(Iterable):
 
-    def __init__(self, scenarios: list, window_size=200):
+    def __init__(self, scenarios: list, window_size=200, gps_preprocessed=True):
         self.loci = dict()
 
         for paths in (zip(_scenarios[s],
                           [os.path.join(PEDESTRIAN_DATA_PATH, s, f) for f in _scenarios[s]])
                       for s in scenarios):
             for k, path in paths:
-                self.loci[k] = PedestrianLocus(path, window_size)
+                self.loci[k] = PedestrianLocus(path, window_size, gps_preprocessed)
 
     def __len__(self):
         return len(self.loci)
@@ -44,7 +44,7 @@ class PedestrianDataset(Iterable):
 
 class PedestrianLocus(Dataset):
 
-    def __init__(self, path, window_size, approximately_match=True):
+    def __init__(self, path, window_size, gps_preprocessed, approximately_match=True):
         # 第一个的时间戳将作为最终的时间戳
         x_sub_frame_names = [("Accelerometer", "Accelerometer"),
                              ("Gyroscope", "Gyroscope"),
@@ -71,18 +71,19 @@ class PedestrianLocus(Dataset):
             self.x_frame = reduce(lambda left, right: pd.merge(left, right, on="Time (s)", how="inner"),
                                   x_sub_frames.values())
 
-        # 前几个数据点有噪声啊
-        origin_latitude, origin_longitude = np.mean(self.y_frame["Latitude (°)"][4:8]),\
-                                            np.mean(self.y_frame["Longitude (°)"][4:8])
+        if gps_preprocessed:
+            # 前几个数据点有噪声啊
+            origin_latitude, origin_longitude = np.mean(self.y_frame["Latitude (°)"][4:8]),\
+                                                np.mean(self.y_frame["Longitude (°)"][4:8])
 
-        self.y_frame["relative_x (m)"] = [geodesic((origin_latitude, origin_longitude),
-                                                   (self.y_frame["Latitude (°)"][i],
-                                                    origin_longitude)).meters
-                                          for i in range(len(self.y_frame))]
-        self.y_frame["relative_y (m)"] = [geodesic((origin_latitude, origin_longitude),
-                                                   (origin_latitude,
-                                                    self.y_frame["Longitude (°)"][i])).meters
-                                          for i in range(len(self.y_frame))]
+            self.y_frame["relative_x (m)"] = [geodesic((origin_latitude, origin_longitude),
+                                                       (self.y_frame["Latitude (°)"][i],
+                                                        origin_longitude)).meters
+                                              for i in range(len(self.y_frame))]
+            self.y_frame["relative_y (m)"] = [geodesic((origin_latitude, origin_longitude),
+                                                       (origin_latitude,
+                                                        self.y_frame["Longitude (°)"][i])).meters
+                                              for i in range(len(self.y_frame))]
 
         time_table = pd.DataFrame({"Time (s)": self.x_frame["Time (s)"],
                                    "nearest_time": self.x_frame["Time (s)"]})
