@@ -4,6 +4,7 @@ import codecs
 from collections.abc import Iterable
 from functools import reduce
 
+import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
@@ -51,7 +52,8 @@ class PedestrianLocus(Dataset):
                              ("Linear Acceleration", "Linear Acceleration"),
                              ("Linear Acceleration", "Linear Accelerometer")]
 
-        x_sub_frames = {frame_name: pd.read_csv(os.path.join(path, file_name) + ".csv", encoding="utf-8") for frame_name, file_name
+        x_sub_frames = {frame_name: pd.read_csv(os.path.join(path, file_name) + ".csv", encoding="utf-8",
+                                                dtype=np.float64) for frame_name, file_name
                         in x_sub_frame_names if os.path.exists(os.path.join(path, file_name) + ".csv")}
         # 某些同学手机传感器数据文件列名有重名现象，适配了这一情况
         for frame_name, frame in x_sub_frames.items():
@@ -69,9 +71,18 @@ class PedestrianLocus(Dataset):
             self.x_frame = reduce(lambda left, right: pd.merge(left, right, on="Time (s)", how="inner"),
                                   x_sub_frames.values())
 
-        # TODO: 增加一个平面辅助坐标系
-        # self.y_frame["relative_x (m)"] = geodesic((self.y_frame[][0], self.y_frame[][0]),
-        #                                           (self.y_frame[][i], self.y_frame[pred.columns[2]][i])).meters
+        # 前几个数据点有噪声啊
+        origin_latitude, origin_longitude = np.mean(self.y_frame["Latitude (°)"][4:8]),\
+                                            np.mean(self.y_frame["Longitude (°)"][4:8])
+
+        self.y_frame["relative_x (m)"] = [geodesic((origin_latitude, origin_longitude),
+                                                   (self.y_frame["Latitude (°)"][i],
+                                                    origin_longitude)).meters
+                                          for i in range(len(self.y_frame))]
+        self.y_frame["relative_y (m)"] = [geodesic((origin_latitude, origin_longitude),
+                                                   (origin_latitude,
+                                                    self.y_frame["Longitude (°)"][i])).meters
+                                          for i in range(len(self.y_frame))]
 
         time_table = pd.DataFrame({"Time (s)": self.x_frame["Time (s)"],
                                    "nearest_time": self.x_frame["Time (s)"]})
@@ -106,11 +117,11 @@ if __name__ == "__main__":
     for name, locus in dataset:
         print("正在遍历移动轨迹{}... \n".format(name))
 
-        # for sample in locus:
-        #     for k, v in sample.items():
-        #         print(k + ":" + str(v.shape))
-        #     break
-        #
-        # print(locus.columns_info())
-        # break
+        for sample in locus:
+            for k, v in sample.items():
+                print(k + ":" + str(v.shape))
+            break
+
+        print(locus.columns_info())
+        break
 
