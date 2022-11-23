@@ -3,6 +3,7 @@ from math import cos, sin, atan2
 import numpy as np
 
 from pedestrian_data import PedestrianLocus, PedestrianDataset
+from scipy.signal import find_peaks
 
 
 def __rotation_x(theta):
@@ -20,6 +21,10 @@ def __rotation_z(theta):
                       [sin(theta), cos(theta), 0],
                       [0, 0, 1]])
 
+
+# 50Hz 我们假设，人1s内不会迈太多步
+MIN_PERIOD = 20
+PROMINENCE = (0.05, None)
 
 """
 一个朴素的预测模型（对于p的预测还不是很准，但是对于姿态预测不错）
@@ -70,7 +75,9 @@ def predict(locus: PedestrianLocus, theta, phi, no_rotation=False):
         speeds[index] = v.T
         accelerations[index] = acceleration_earth.T
 
-    return positions, speeds, accelerations, thetas, phis
+    peaks_index, _ = find_peaks(speeds[:, 2], distance=MIN_PERIOD, prominence=PROMINENCE)
+
+    return positions, speeds, accelerations, thetas, phis, time_frame[1:-1], peaks_index
 
 
 if __name__ == "__main__":
