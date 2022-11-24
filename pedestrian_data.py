@@ -1,12 +1,12 @@
 import os
 import json
 import codecs
+import scipy.signal as signal
 from collections.abc import Iterable
 from functools import reduce
 
 import numpy as np
 import pandas as pd
-import torch
 from torch.utils.data import Dataset
 from geopy.distance import geodesic
 
@@ -21,16 +21,39 @@ _scenarios = {scenario: [sample for sample in os.listdir(os.path.join(PEDESTRIAN
               if os.path.isdir(os.path.join(PEDESTRIAN_DATA_PATH, scenario))}
 
 
+def default_low_pass_filter(data):
+    # 采样频率为50 hz, 要滤除10hz以上频率成分，
+    # 即截至频率为7.5hz, 则wn = 2 * 10 / 50 = 0.4 == > Wn = 0.4
+    b, a = signal.butter(8, 0.4, 'lowpass')  # 配置滤波器 8 表示滤波器的阶数
+    columns = data.columns[1:]
+
+    for ax in columns:
+        data[ax] = signal.filtfilt(b, a, data[ax])  # data为要过滤的信号
+
+# 效果不好
+# def default_high_pass_filter(data):
+#     # 采样频率为50 hz, 要滤除0.5hz以下频率成分，
+#     # 即截至频率为0.5hz, 则wn = 2 * 0.5 / 50 = 0.02 == > Wn = 0.02
+#     b, a = signal.butter(8, 0.02, 'highpass')  # 配置滤波器 8 表示滤波器的阶数
+#     columns = data.columns[1:]
+#
+#     for ax in columns:
+#         data[ax] = signal.filtfilt(b, a, data[ax])  # data为要过滤的信号
+
+
 class PedestrianDataset(Iterable):
 
-    def __init__(self, scenarios: list, window_size=200, gps_preprocessed=True):
+    def __init__(self, scenarios: list, window_size=200, gps_preprocessed=True,
+                 acceleration_filter=None):
         self.loci = dict()
 
         for paths in (zip(_scenarios[s],
                           [os.path.join(PEDESTRIAN_DATA_PATH, s, f) for f in _scenarios[s]])
                       for s in scenarios):
             for k, path in paths:
-                self.loci[k] = PedestrianLocus(path, window_size, gps_preprocessed)
+                self.loci[k] = PedestrianLocus(path, window_size,
+                                               gps_preprocessed,
+                                               acceleration_filter=acceleration_filter)
 
     def __len__(self):
         return len(self.loci)
@@ -44,7 +67,8 @@ class PedestrianDataset(Iterable):
 
 class PedestrianLocus(Dataset):
 
-    def __init__(self, path, window_size, gps_preprocessed, approximately_match=True):
+    def __init__(self, path, window_size, gps_preprocessed,
+                 acceleration_filter=None, gyroscope_filter=None):
         # 第一个的时间戳将作为最终的时间戳
         x_sub_frame_names = [("Accelerometer", "Accelerometer"),
                              ("Gyroscope", "Gyroscope"),
@@ -55,6 +79,7 @@ class PedestrianLocus(Dataset):
         x_sub_frames = {frame_name: pd.read_csv(os.path.join(path, file_name) + ".csv", encoding="utf-8",
                                                 dtype=np.float64) for frame_name, file_name
                         in x_sub_frame_names if os.path.exists(os.path.join(path, file_name) + ".csv")}
+
         # 某些同学手机传感器数据文件列名有重名现象，适配了这一情况
         for frame_name, frame in x_sub_frames.items():
             frame.columns = map(
@@ -64,12 +89,12 @@ class PedestrianLocus(Dataset):
         self.y_frame = pd.read_csv(os.path.join(path, "Location.csv"), encoding="utf-8")
         self.window_size = window_size
 
-        if approximately_match:
-            self.x_frame = reduce(lambda left, right: pd.merge_asof(left, right, on="Time (s)", direction="nearest"),
-                                  x_sub_frames.values())
-        else:
-            self.x_frame = reduce(lambda left, right: pd.merge(left, right, on="Time (s)", how="inner"),
-                                  x_sub_frames.values())
+        # 预处理阶段
+        if acceleration_filter is not None:
+            acceleration_filter(x_sub_frames["Accelerometer"])
+            acceleration_filter(x_sub_frames["Linear Acceleration"])
+        if gyroscope_filter is not None:
+            gyroscope_filter(x_sub_frames["Gyroscope"])
 
         if gps_preprocessed:
             # 前几个数据点有噪声啊
@@ -84,6 +109,10 @@ class PedestrianLocus(Dataset):
                                                        (origin_latitude,
                                                         self.y_frame["Longitude (°)"][i])).meters
                                               for i in range(len(self.y_frame))]
+
+        # 合并表
+        self.x_frame = reduce(lambda left, right: pd.merge_asof(left, right, on="Time (s)", direction="nearest"),
+                              x_sub_frames.values())
 
         time_table = pd.DataFrame({"Time (s)": self.x_frame["Time (s)"],
                                    "nearest_time": self.x_frame["Time (s)"]})
@@ -113,7 +142,8 @@ class PedestrianLocus(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = PedestrianDataset(["Hand-Walk", "Pocket-Walk"], window_size=200)
+    dataset = PedestrianDataset(["Magnetometer"], window_size=200, gps_preprocessed=False,
+                                acceleration_filter=default_low_pass_filter)
 
     for name, locus in dataset:
         print("正在遍历移动轨迹{}... \n".format(name))
