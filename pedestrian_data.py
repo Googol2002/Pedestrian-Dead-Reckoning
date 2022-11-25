@@ -1,3 +1,4 @@
+import math
 import os
 import json
 import codecs
@@ -43,8 +44,8 @@ def default_low_pass_filter(data):
 
 class PedestrianDataset(Iterable):
 
-    def __init__(self, scenarios: list, window_size=200, gps_preprocessed=True,
-                 acceleration_filter=None):
+    def __init__(self, scenarios: list, window_size=200,
+                 acceleration_filter=default_low_pass_filter):
         self.loci = dict()
 
         for paths in (zip(_scenarios[s],
@@ -52,7 +53,6 @@ class PedestrianDataset(Iterable):
                       for s in scenarios):
             for k, path in paths:
                 self.loci[k] = PedestrianLocus(path, window_size,
-                                               gps_preprocessed,
                                                acceleration_filter=acceleration_filter)
 
     def __len__(self):
@@ -67,7 +67,7 @@ class PedestrianDataset(Iterable):
 
 class PedestrianLocus(Dataset):
 
-    def __init__(self, path, window_size, gps_preprocessed,
+    def __init__(self, path, window_size,
                  acceleration_filter=None, gyroscope_filter=None):
         # 第一个的时间戳将作为最终的时间戳
         x_sub_frame_names = [("Accelerometer", "Accelerometer"),
@@ -96,19 +96,20 @@ class PedestrianLocus(Dataset):
         if gyroscope_filter is not None:
             gyroscope_filter(x_sub_frames["Gyroscope"])
 
-        if gps_preprocessed:
-            # 前几个数据点有噪声啊
-            origin_latitude, origin_longitude = np.mean(self.y_frame["Latitude (°)"][4:8]),\
-                                                np.mean(self.y_frame["Longitude (°)"][4:8])
+        # 前几个数据点有噪声啊
+        self.relative_location = self.y_frame[["Time (s)", "Latitude (°)", "Longitude (°)"]].dropna()
+        origin_latitude, origin_longitude = np.mean(self.relative_location["Latitude (°)"][4:8]),\
+                                            np.mean(self.relative_location["Longitude (°)"][4:8])
 
-            self.y_frame["relative_x (m)"] = [geodesic((origin_latitude, origin_longitude),
-                                                       (self.y_frame["Latitude (°)"][i],
+        if not math.isnan(origin_latitude) and not math.isnan(origin_latitude):
+            self.relative_location["relative_x (m)"] = [geodesic((origin_latitude, origin_longitude),
+                                                        (self.relative_location["Latitude (°)"][i],
                                                         origin_longitude)).meters
-                                              for i in range(len(self.y_frame))]
-            self.y_frame["relative_y (m)"] = [geodesic((origin_latitude, origin_longitude),
-                                                       (origin_latitude,
-                                                        self.y_frame["Longitude (°)"][i])).meters
-                                              for i in range(len(self.y_frame))]
+                                                        for i in range(len(self.relative_location))]
+            self.relative_location["relative_y (m)"] = [geodesic((origin_latitude, origin_longitude),
+                                                        (origin_latitude,
+                                                        self.relative_location["Longitude (°)"][i])).meters
+                                                        for i in range(len(self.relative_location))]
 
         # 合并表
         self.x_frame = reduce(lambda left, right: pd.merge_asof(left, right, on="Time (s)", direction="nearest"),
@@ -142,7 +143,7 @@ class PedestrianLocus(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = PedestrianDataset(["Magnetometer"], window_size=200, gps_preprocessed=False,
+    dataset = PedestrianDataset(["Magnetometer"], window_size=200,
                                 acceleration_filter=default_low_pass_filter)
 
     for name, locus in dataset:

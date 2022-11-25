@@ -3,15 +3,10 @@ from numpy import arctan2, pi
 
 import numpy as np
 
-from locus_predictor.helper import measure_initial_attitude
+from locus_predictor.helper import measure_initial_attitude, __rotation_z, __rotation_y, __rotation_x, \
+    calculate_theta_from_magnetometer, calculate_phi_from_gravity, moving_avg
 from pedestrian_data import PedestrianLocus, PedestrianDataset
 from scipy.signal import find_peaks
-
-
-@np.vectorize
-def calculate_theta(x, y):
-    # 我们将(北-南)看作x轴，手机将长轴作为y轴
-    return pi / 2 - arctan2(y, x)
 
 
 def measure_attitude(locus: PedestrianLocus):
@@ -20,13 +15,12 @@ def measure_attitude(locus: PedestrianLocus):
     gyroscope_frame = locus.data["Gyroscope"]
 
     # 我们要做一个MA降噪
-    CONV_SIZE = 30
-    moving_avg = lambda x: np.convolve(x, np.logspace(0.1, 0.5, 30, endpoint=True) /
-                               sum(np.logspace(0.1, 0.5, 30, endpoint=True)), mode="same")
-    measured_theta = calculate_theta(magnetometer_frame[:, 1], magnetometer_frame[:, 2])
-    # measured_phi = calculate_phi(ma(gravity_frame[:, 1]), ma(gravity_frame[:, 2]), ma(gravity_frame[:, 3]))
 
-    # return measured_theta, measured_phi
+    measured_theta = calculate_theta_from_magnetometer(magnetometer_frame[:, 1], magnetometer_frame[:, 2])
+    measured_phi = calculate_phi_from_gravity(moving_avg(gravity_frame[:, 1]),
+                                              moving_avg(gravity_frame[:, 2]), moving_avg(gravity_frame[:, 3]))
+
+    return measured_theta, measured_phi
 
 
 # 50Hz 我们假设，人1s内不会迈太多步
@@ -36,7 +30,6 @@ PROMINENCE = (0.05, None)
 PACE_STEP = 0.8
 
 CONV_SIZE = 30
-moving_avg = lambda x: np.convolve(x, np.logspace(0.1, 0.5, 30, endpoint=True)/ sum(np.logspace(0.1, 0.5, 30, endpoint=True)), mode="same")
 
 """
 一个朴素的预测模型（对于p的预测还不是很准，但是对于姿态预测不错）
@@ -135,23 +128,6 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True):
                               "walk_time": time_frame[1 + peaks_index]}
 
 
-def __rotation_x(theta):
-    return np.matrix([[1, 0, 0],
-                      [0, cos(theta), -sin(theta)],
-                      [0, sin(theta), cos(theta)]])
-
-def __rotation_y(theta):
-    return np.matrix([[cos(theta), 0, sin(theta)],
-                      [0, 1, 0],
-                      [-sin(theta), 0, cos(theta)]])
-
-def __rotation_z(theta):
-    return np.matrix([[cos(theta), -sin(theta), 0],
-                      [sin(theta), cos(theta), 0],
-                      [0, 0, 1]])
-
-
 if __name__ == "__main__":
     dataset = PedestrianDataset(["Magnetometer"], gps_preprocessed=False)
-    predict(dataset["随机漫步1"], 0, 0, walk=True)
-    # measure_attitude(dataset["水平面(北东南西，加入扰动)"])
+    predict(dataset["随机漫步1"], walk=True)

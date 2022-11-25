@@ -14,9 +14,6 @@ PROMINENCE = (0.05, None)
 # 假设步幅为0.8m
 PACE_STEP = 0.8
 
-CONV_SIZE = 30
-moving_avg = lambda x: np.convolve(x, np.logspace(0.1, 0.5, 30, endpoint=True)/ sum(np.logspace(0.1, 0.5, 30, endpoint=True)), mode="same")
-
 """
 一个朴素的预测模型（对于p的预测还不是很准，但是对于姿态预测不错）
 即使不涉及姿态，p仍然不准，比如在桌面上画正方形，加入卡尔曼滤波试试看
@@ -51,10 +48,10 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True):
             zip(gyroscope_imu_frame[1: -1], acceleration_imu_frame[1: -1], magnetometer_imu_frame[1: -1])):
         delta_t = (time_frame[index + 2] - time_frame[index]) / 2
         # 姿态变化
-        imu_to_earth = imu_to_earth * Rotation.from_euler("XYZ", gyroscope_imu)
+        imu_to_earth = imu_to_earth * Rotation.from_euler("XYZ", delta_t * gyroscope_imu)
+        # Rotation.from_quat(np.concatenate((np.asarray([1]), delta_t * gyroscope_imu / 2)))
 
         # 计算姿态角
-        # 这种计算正确吗？
         thetas[index], phis[index], alphas[index] = imu_to_earth.as_euler("ZYX")
 
         # 牛顿力学
@@ -69,7 +66,6 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True):
         directions[index] = thetas[index]
 
     peaks_index, _ = find_peaks(speeds[:, 2], distance=MIN_PERIOD, prominence=PROMINENCE)
-
     # 步幅步频
     walk_positions, walk_directions = None, None
     if walk:
@@ -94,4 +90,4 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True):
 
 if __name__ == "__main__":
     dataset = PedestrianDataset(["Magnetometer"], gps_preprocessed=False)
-    predict(dataset["随机漫步1"], 0, 0, walk=True)
+    predict(dataset["随机漫步1"], walk=True)
