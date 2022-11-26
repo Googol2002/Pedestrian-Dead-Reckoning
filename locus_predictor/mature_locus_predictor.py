@@ -54,7 +54,8 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True, pace_inf
         imu_to_earth = imu_to_earth * Rotation.from_euler("xyz", delta_t * gyroscope_imu)
 
         # 计算姿态角
-        thetas[index], phis[index], alphas[index] = imu_to_earth.as_euler("ZYX")
+        # thetas[index], phis[index], alphas[index] = imu_to_earth.as_euler("ZYX")
+        thetas[index], alphas[index], phis[index] = imu_to_earth.as_euler("ZXY")
 
         # 牛顿力学
         acceleration_earth = imu_to_earth.apply(acceleration_imu)
