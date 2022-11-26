@@ -27,8 +27,8 @@ def pace_inference(info):
         a_earth = accelerations[peak]
         # index 从0 到 步数
         # peak 从0 到 总数据数（可以直接用来访问info中的数据
-        # return steplength[index] if index < len(steplength) else ema(np.asarray(steplength))
-        return steplength[index] if index < len(steplength) else np.asarray(steplength).mean()
+        return steplength[index] if index < len(steplength) else ema(np.asarray(steplength))
+        # return steplength[index] if index < len(steplength) else np.asarray(steplength).mean()
 
     return inference
 
@@ -39,4 +39,6 @@ def ema(data: np.ndarray, decay=0.9):
     L = len(data)
     for idx in range(len(data)):
         res = res + pow(decay, L - 1 - idx) * data[idx]
+    c = (1 - decay) / (1 - pow(decay, L))
+    res *= c
     return res
