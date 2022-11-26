@@ -7,7 +7,6 @@ from locus_predictor.helper import measure_initial_attitude
 from pedestrian_data import PedestrianLocus, PedestrianDataset
 from scipy.signal import find_peaks
 
-
 # 50Hz 我们假设，人1s内不会迈太多步
 MIN_PERIOD = 20
 PROMINENCE = (0.05, None)
@@ -29,24 +28,21 @@ PACE_STEP = 0.8
 @:return positions: 不保证和时间对齐
 @:return properties: 一些属性
 """
+
+
 def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True, pace_inference=None):
-    p, v = np.zeros(3), np.zeros(3)   # 获取一个初态
+    p, v = np.zeros(3), np.zeros(3)  # 获取一个初态
     theta, phi = attitude if attitude else measure_initial_attitude(locus, 30)
 
     # 这里的姿态矩阵定义是：R^{EARTH}_{IMU}，因此p^{EARTH} = R^{EARTH}_{IMU} p^{IMU}
     imu_to_earth = Rotation.from_euler("ZYX", [theta, 0, phi])
 
-    gyroscope_imu_frame = locus.data["Gyroscope"][:, 1:]
-    magnetometer_imu_frame = locus.data["Magnetometer"][:, 1:]
-    acceleration_imu_frame = locus.data["Linear Acceleration"][:, 1:]
-    # gyroscope_imu_frame = locus.data["Gyroscope"][:, [2, 1, 3]]
-    # magnetometer_imu_frame = locus.data["Magnetometer"][:, [2, 1, 3]]
-    # acceleration_imu_frame = locus.data["Linear Acceleration"][:, [2, 1, 3]]
+    gyroscope_imu_frame, magnetometer_imu_frame, acceleration_imu_frame = locus.data["Gyroscope"][:, 1:], \
+        locus.data["Magnetometer"][:, 1:], locus.data["Linear Acceleration"][:, 1:]
     time_frame = locus.data["Gyroscope"][:, 0]
 
     thetas, phis, alphas, directions = [np.empty(len(time_frame) - 2) for _ in range(4)]
     positions, speeds, accelerations = [np.empty((len(time_frame) - 2, 3)) for _ in range(3)]
-
     for index, (gyroscope_imu, acceleration_imu, magnetometer_imu) in enumerate(
             zip(gyroscope_imu_frame[1: -1], acceleration_imu_frame[1: -1], magnetometer_imu_frame[1: -1])):
         delta_t = (time_frame[index + 2] - time_frame[index]) / 2
@@ -55,6 +51,7 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True, pace_inf
 
         # 计算姿态角
         # thetas[index], phis[index], alphas[index] = imu_to_earth.as_euler("ZYX")
+        # 可以解决摆手机问题
         thetas[index], alphas[index], phis[index] = imu_to_earth.as_euler("ZXY")
 
         # 牛顿力学
@@ -62,18 +59,19 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True, pace_inf
         p += v * delta_t + acceleration_earth * (delta_t ** 2) / 2
         v += acceleration_earth * delta_t
 
-        # 利用牛顿力学计算p
+        # 记录运动学信息
         positions[index] = p
         speeds[index] = v
         accelerations[index] = acceleration_earth
         directions[index] = thetas[index]
 
+    # 寻找步频
     peaks_index, _ = find_peaks(speeds[:, 2], distance=MIN_PERIOD, prominence=PROMINENCE)
 
     info = {"speeds": speeds, "accelerations": accelerations,
-                              "thetas": thetas, "phis": phis, "time": time_frame[1:-1],
-                              "peaks": peaks_index, "directions": directions,
-                              "walk_time": time_frame[1 + peaks_index]}
+            "thetas": thetas, "phis": phis, "time": time_frame[1:-1],
+            "peaks": peaks_index, "directions": directions,
+            "walk_time": time_frame[1 + peaks_index]}
     # 步幅步频
     if walk:
         inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
@@ -82,7 +80,6 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True, pace_inf
         p = np.zeros(2)
 
         for index, peak in enumerate(peaks_index):
-            # direction = directions[peak - 2: peak + 2].mean(axis=0)   # 只要xOy上方向
             direction = directions[peak]
             walk_directions[index] = direction
 

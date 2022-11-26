@@ -51,5 +51,6 @@ def __rotation_z(theta):
                       [0, 0, 1]])
 
 CONV_SIZE = 30
-moving_avg = lambda x: np.convolve(x, np.logspace(0.1, 0.5, CONV_SIZE, endpoint=True) /
+def moving_avg(x):
+    return np.convolve(x, np.logspace(0.1, 0.5, CONV_SIZE, endpoint=True) /
                                sum(np.logspace(0.1, 0.5, CONV_SIZE, endpoint=True)), mode="same")
