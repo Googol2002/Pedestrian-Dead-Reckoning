@@ -1,11 +1,14 @@
+import datetime
 from cmath import pi, cos, sin
 
+import magnetic_field_calculator
 import numpy as np
 from numpy import arctan2
 
 from pedestrian_data import PedestrianLocus
 from scipy.spatial.transform import Rotation
 
+from magnetic_field_calculator import MagneticFieldCalculator
 
 # TODO: 适配更多姿态的测量
 @np.vectorize
@@ -39,6 +42,27 @@ def measure_initial_attitude(locus: PedestrianLocus, window_size):
     # gps_moving_direction = locus.y_frame[""]
 
     return initial_theta, initial_phi
+
+
+magnetic_calculator = MagneticFieldCalculator()
+def measure_initial_attitude_advanced(locus: PedestrianLocus, window_size):
+    result = magnetic_calculator.calculate(
+        latitude=locus.origin[0],
+        longitude=locus.origin[1],
+        altitude=locus.y_frame['Height (m)'].mean(),
+        date=datetime.datetime.today()
+    )
+
+    assert(result["inclination"]["units"] == 'deg (down)')
+    assert(result["declination"]["units"] == 'deg (east)')
+
+    gravity_frame = (locus.data["Accelerometer"][:window_size, 1:] -
+                     locus.data["Linear Acceleration"][:window_size, 1:]).mean(axis=0)
+    magnetometer_frame = locus.data["Magnetometer"][:window_size, 1:].mean(axis=0)
+
+    Rotation.align_vectors([np.array([0, 0, 1]), np.array([sin(), 0, 0])])
+
+    return None, None
 
 def __rotation_x(theta):
     return np.matrix([[1, 0, 0],

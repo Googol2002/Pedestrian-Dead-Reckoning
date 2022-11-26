@@ -4,9 +4,8 @@ from numpy import cos, sin
 from scipy.signal import find_peaks
 from scipy.interpolate import interp1d
 from scipy.spatial.transform import Rotation
-from magnetic_field_calculator import MagneticFieldCalculator
 
-from locus_predictor.helper import measure_initial_attitude
+from locus_predictor.helper import measure_initial_attitude, measure_initial_attitude_advanced
 from pedestrian_data import PedestrianLocus, PedestrianDataset
 
 # 50Hz 我们假设，人1s内不会迈太多步
@@ -35,7 +34,7 @@ PACE_STEP = 0.8
 def predict(locus: PedestrianLocus, attitude=None, moving_bias=0, pace_inference=None):
     p, v = np.zeros(3), np.zeros(3)  # 获取一个初态
     theta, phi = attitude if attitude else measure_initial_attitude(locus, 30)
-
+    measure_initial_attitude_advanced(locus, 30)
     # 这里的姿态矩阵定义是：R^{EARTH}_{IMU}，因此p^{EARTH} = R^{EARTH}_{IMU} p^{IMU}
     imu_to_earth = Rotation.from_euler("ZYX", [theta, 0, phi])
 

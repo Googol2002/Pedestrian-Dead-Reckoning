@@ -9,7 +9,7 @@ from functools import reduce
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
-from geopy.distance import geodesic
+from geographiclib.geodesic import Geodesic
 
 with codecs.open(r"config/config.json", 'r', 'utf-8') as config_file:
     config_data = json.load(config_file)
@@ -100,17 +100,17 @@ class PedestrianLocus(Dataset):
         # 前几个数据点有噪声啊
         self.relative_location = self.y_frame[["Time (s)", "Latitude (°)", "Longitude (°)"]].dropna()
         origin_latitude, origin_longitude = np.mean(self.relative_location["Latitude (°)"][number_of_gps_to_filter:number_of_gps_to_filter+5]),\
-                                            np.mean(self.relative_location["Longitude (°)"][number_of_gps_to_filter:number_of_gps_to_filter+5])
-
-        if not math.isnan(origin_latitude) and not math.isnan(origin_longitude):
-            self.relative_location["relative_x (m)"] = [geodesic((origin_latitude, origin_longitude),
-                                                        (self.relative_location["Latitude (°)"][i],
-                                                        origin_longitude)).meters
-                                                        for i in range(len(self.relative_location))]
-            self.relative_location["relative_y (m)"] = [geodesic((origin_latitude, origin_longitude),
-                                                        (origin_latitude,
-                                                        self.relative_location["Longitude (°)"][i])).meters
-                                                        for i in range(len(self.relative_location))]
+            np.mean(self.relative_location["Longitude (°)"][number_of_gps_to_filter:number_of_gps_to_filter+5])
+        self.origin = (origin_latitude, origin_longitude)
+        if not math.isnan(origin_latitude) and not math.isnan(origin_latitude):
+            geo_infos = [Geodesic.WGS84.Inverse(origin_latitude, origin_longitude,
+                                                self.relative_location["Latitude (°)"][i],
+                                                self.relative_location["Longitude (°)"][i])
+                         for i in range(len(self.relative_location))]
+            self.relative_location["relative_x (m)"] = [geo_info["s12"] * math.cos(
+                math.pi / 2 - math.radians(geo_info["azi1"])) for geo_info in geo_infos]
+            self.relative_location["relative_y (m)"] = [geo_info["s12"] * math.sin(
+                math.pi / 2 - math.radians(geo_info["azi1"])) for geo_info in geo_infos]
 
         # 合并表
         self.x_frame = reduce(lambda left, right: pd.merge_asof(left, right, on="Time (s)", direction="nearest"),
