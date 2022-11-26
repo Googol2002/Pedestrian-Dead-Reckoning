@@ -25,12 +25,10 @@ PACE_STEP = 0.8
             False：则会关闭假设，并将positions改用步幅计算
             None：利用牛顿力学计算positions
             
-@:return positions: 不保证和时间对齐
+@:return positions: 利用步频步幅得到数据插值而来
 @:return properties: 一些属性
 """
-
-
-def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True, pace_inference=None):
+def predict(locus: PedestrianLocus, attitude=None, moving_bias=0, pace_inference=None):
     p, v = np.zeros(3), np.zeros(3)  # 获取一个初态
     theta, phi = attitude if attitude else measure_initial_attitude(locus, 30)
 
@@ -60,7 +58,7 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True, pace_inf
         v += acceleration_earth * delta_t
 
         # 记录运动学信息
-        positions[index] = p
+        # positions[index] = p
         speeds[index] = v
         accelerations[index] = acceleration_earth
         directions[index] = thetas[index]
@@ -90,10 +88,11 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True, pace_inf
         info["walk_positions"] = walk_positions
         info["walk_directions"] = walk_directions
 
+    # 插值
     # 汇总数据
     return positions[:, :2], info
 
 
 if __name__ == "__main__":
     dataset = PedestrianDataset(["Magnetometer"])
-    predict(dataset["随机漫步1"], walk=True)
+    predict(dataset["随机漫步1"])
