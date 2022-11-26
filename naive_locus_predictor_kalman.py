@@ -23,36 +23,30 @@ def __rotation_z(theta):
 
 
 def __init_kalman() -> KalmanFilter:
-    dt = 0.02
-    sigma_a = 0.5
-    sigma_x = sigma_y = sigma_z = 0.05
-    f = KalmanFilter(dim_x=9, dim_z=6)  # z就是前面几个是0，加速度值不是实际值
+    dt = 0.02  # 时间戳
+    sigma_a = 0.5  # 测量加速度的不确定度
+    sigma_x = sigma_y = sigma_z = 0.05  # 测量位置的不确定度
+    f = KalmanFilter(dim_x=6, dim_z=3, dim_u=3)  # x->(x,x',y,y',z,z') z->(x,y,z) u->(x'',y'',z'')
 
-    # 转换矩阵F
-    f.F = np.array([[1., dt, 0.5 * dt * dt, 0, 0, 0, 0, 0, 0],
-                    [0, 1, dt, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 1, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 1, dt, 0.5 * dt * dt, 0, 0, 0],
+    # 转换矩阵 F:(6,6)
+    f.F = np.array([[1., dt, 0, 0, 0, 0],
+                    [0, 1, 0, 0, 0, 0],
+                    [0, 0, 1., dt, 0, 0],
                     [0, 0, 0, 0, 1, dt, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 1., 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 1., dt, 0.5 * dt * dt],
-                    [0, 0, 0, 0, 0, 0, 0, 1, dt],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 1.]
+                    [0, 0, 0, 0, 1., dt],
+                    [0, 0, 0, 0, 0, 1]
                     ])
 
-    # 过程噪声
-    f.Q = np.array([[0.25 * pow(dt, 4), 0.5 * pow(dt, 3), 0.5 * pow(dt, 2), 0, 0, 0, 0, 0, 0],
-                    [0.5 * pow(dt, 3), dt * dt, dt, 0, 0, 0, 0, 0, 0],
-                    [0.5 * pow(dt, 2), dt, 1, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0.25 * pow(dt, 4), 0.5 * pow(dt, 3), 0.5 * pow(dt, 2), 0, 0, 0],
-                    [0, 0, 0, 0.5 * pow(dt, 3), dt * dt, dt, 0, 0, 0],
-                    [0, 0, 0, 0.5 * pow(dt, 2), dt, 1, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0.25 * pow(dt, 4), 0.5 * pow(dt, 3), 0.5 * pow(dt, 2)],
-                    [0, 0, 0, 0, 0, 0, 0.5 * pow(dt, 3), dt * dt, dt],
-                    [0, 0, 0, 0, 0, 0, 0.5 * pow(dt, 2), dt, 1]
+    # 过程噪声 Q:(6,6)
+    f.Q = np.array([[0.25 * pow(dt, 4), 0.5 * pow(dt, 3), 0, 0, 0, 0],
+                    [0.5 * pow(dt, 3), dt * dt, 0, 0, 0, 0],
+                    [0, 0, 0.25 * pow(dt, 4), 0.5 * pow(dt, 3), 0, 0],
+                    [0, 0, 0.5 * pow(dt, 3), dt * dt, 0, 0],
+                    [0, 0, 0, 0, 0.25 * pow(dt, 4), 0.5 * pow(dt, 3)],
+                    [0, 0, 0, 0, 0.5 * pow(dt, 3), dt * dt],
                     ]) * sigma_a * sigma_a
 
-    # 测量噪声 , 必须是二维数组
+    # 测量噪声 , 必须是二维数组 R:(6,6)
     f.R = np.array([[sigma_x * sigma_x, 0, 0, 0, 0, 0],
                     [0, sigma_a * sigma_a, 0, 0, 0, 0],
                     [0, 0, sigma_y * sigma_y, 0, 0, 0],
@@ -60,19 +54,25 @@ def __init_kalman() -> KalmanFilter:
                     [0, 0, 0, 0, sigma_z * sigma_z, 0],
                     [0, 0, 0, 0, 0, sigma_a * sigma_a]])
 
-    # 观测矩阵
-    f.H = np.array([[1, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 1, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 1, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 1, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 1, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 1]
+    # 观测矩阵 H:(3,6)
+    f.H = np.array([[1, 0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 0]
                     ])
     # 初始值
-    f.x = np.zeros(9)
+    f.x = np.zeros(6)
 
-    # 协方差矩阵  默认是个单位矩阵 *500就行
-    f.P *= sigma_z
+    # 预测协方差矩阵  默认是个单位矩阵 *500就行
+    f.P *= sigma_a
+
+    # 控制矩阵 B:(6,3)
+    f.B = np.array([[0.5 * dt * dt, 0, 0],
+                    [dt, 0, 0],
+                    [0, 0.5 * dt * dt, 0],
+                    [1, dt, 0],
+                    [0, 0, 0.5 * dt * dt],
+                    [0, 0, dt]
+                    ])
     return f
 
 
@@ -87,7 +87,7 @@ def __init_kalman() -> KalmanFilter:
 
 def predict(locus: PedestrianLocus, theta, phi, no_rotation=False):
     p, v = np.zeros((3, 1)), np.zeros((3, 1))  # 获取一个初态
-    x, z = np.zeros((9, 1)), np.zeros((6, 1))
+    x, z = np.zeros((9, 1)), np.zeros((3, 1))
     kf = __init_kalman()
 
     # 这里的姿态矩阵定义是：R^{EARTH}_{IMU}，因此p^{EARTH} = R^{EARTH}_{IMU} p^{IMU}
@@ -119,12 +119,9 @@ def predict(locus: PedestrianLocus, theta, phi, no_rotation=False):
         acceleration_earth = imu_to_earth @ np.expand_dims(acceleration_imu, 1)
 
         # TODO 卡尔曼修正
-        z[1] = acceleration_earth[0]
-        z[3] = acceleration_earth[1]
-        z[5] = acceleration_earth[2]
-        z = z.reshape(-1, 1)
+        u = acceleration_earth.reshape(-1, 1)
         kf.update(z)
-        kf.predict()
+        kf.predict(u)
 
         # p += v * delta_t + acceleration_earth * (delta_t ** 2) / 2
         # v += acceleration_earth * delta_t
