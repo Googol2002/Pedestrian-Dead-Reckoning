@@ -72,7 +72,7 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True, pace_inf
 
     info = {"speeds": speeds, "accelerations": accelerations,
                               "thetas": thetas, "phis": phis, "time": time_frame[1:-1],
-                              "peaks": peaks_index,
+                              "peaks": peaks_index, "directions": directions,
                               "walk_time": time_frame[1 + peaks_index]}
     # 步幅步频
     if walk:
