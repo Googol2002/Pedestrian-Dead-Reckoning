@@ -29,16 +29,19 @@ PACE_STEP = 0.8
 @:return positions: 不保证和时间对齐
 @:return properties: 一些属性
 """
-def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True):
+def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True, pace_inference=None):
     p, v = np.zeros(3), np.zeros(3)   # 获取一个初态
     theta, phi = attitude if attitude else measure_initial_attitude(locus, 30)
 
     # 这里的姿态矩阵定义是：R^{EARTH}_{IMU}，因此p^{EARTH} = R^{EARTH}_{IMU} p^{IMU}
-    imu_to_earth = Rotation.from_euler("ZYX", [theta, phi, 0])
+    imu_to_earth = Rotation.from_euler("ZYX", [theta, 0, phi])
 
     gyroscope_imu_frame = locus.data["Gyroscope"][:, 1:]
     magnetometer_imu_frame = locus.data["Magnetometer"][:, 1:]
     acceleration_imu_frame = locus.data["Linear Acceleration"][:, 1:]
+    # gyroscope_imu_frame = locus.data["Gyroscope"][:, [2, 1, 3]]
+    # magnetometer_imu_frame = locus.data["Magnetometer"][:, [2, 1, 3]]
+    # acceleration_imu_frame = locus.data["Linear Acceleration"][:, [2, 1, 3]]
     time_frame = locus.data["Gyroscope"][:, 0]
 
     thetas, phis, alphas, directions = [np.empty(len(time_frame) - 2) for _ in range(4)]
@@ -48,8 +51,7 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True):
             zip(gyroscope_imu_frame[1: -1], acceleration_imu_frame[1: -1], magnetometer_imu_frame[1: -1])):
         delta_t = (time_frame[index + 2] - time_frame[index]) / 2
         # 姿态变化
-        imu_to_earth = imu_to_earth * Rotation.from_euler("XYZ", delta_t * gyroscope_imu)
-        # Rotation.from_quat(np.concatenate((np.asarray([1]), delta_t * gyroscope_imu / 2)))
+        imu_to_earth = imu_to_earth * Rotation.from_euler("xyz", delta_t * gyroscope_imu)
 
         # 计算姿态角
         thetas[index], phis[index], alphas[index] = imu_to_earth.as_euler("ZYX")
@@ -66,9 +68,14 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True):
         directions[index] = thetas[index]
 
     peaks_index, _ = find_peaks(speeds[:, 2], distance=MIN_PERIOD, prominence=PROMINENCE)
+
+    info = {"speeds": speeds, "accelerations": accelerations,
+                              "thetas": thetas, "phis": phis, "time": time_frame[1:-1],
+                              "peaks": peaks_index,
+                              "walk_time": time_frame[1 + peaks_index]}
     # 步幅步频
-    walk_positions, walk_directions = None, None
     if walk:
+        inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
         walk_positions = np.zeros((len(peaks_index) + 1, 2))
         walk_directions = np.zeros(len(peaks_index))
         p = np.zeros(2)
@@ -77,17 +84,18 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True):
             # direction = directions[peak - 2: peak + 2].mean(axis=0)   # 只要xOy上方向
             direction = directions[peak]
             walk_directions[index] = direction
-            p += PACE_STEP * np.asarray([cos(direction), sin(direction)])
+
+            pace = inference(index, peak)
+            p += pace * np.asarray([cos(direction), sin(direction)])
             walk_positions[index + 1] = p
 
+        info["walk_positions"] = walk_positions
+        info["walk_directions"] = walk_directions
+
     # 汇总数据
-    return positions[:, :2], {"speeds": speeds, "accelerations": accelerations,
-                              "thetas": thetas, "phis": phis, "time": time_frame[1:-1],
-                              "peaks": peaks_index, "walk_positions": walk_positions,
-                              "walk_directions": walk_directions,
-                              "walk_time": time_frame[1 + peaks_index]}
+    return positions[:, :2], info
 
 
 if __name__ == "__main__":
-    dataset = PedestrianDataset(["Magnetometer"], gps_preprocessed=False)
+    dataset = PedestrianDataset(["Magnetometer"])
     predict(dataset["随机漫步1"], walk=True)

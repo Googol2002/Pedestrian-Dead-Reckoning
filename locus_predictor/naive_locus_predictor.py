@@ -129,5 +129,5 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True):
 
 
 if __name__ == "__main__":
-    dataset = PedestrianDataset(["Magnetometer"], gps_preprocessed=False)
+    dataset = PedestrianDataset(["Magnetometer"])
     predict(dataset["随机漫步1"], walk=True)
