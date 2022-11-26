@@ -40,9 +40,7 @@ def predict(locus: PedestrianLocus, attitude=None, moving_bias=0, pace_inference
     imu_to_earth = Rotation.from_euler("ZYX", [theta, 0, phi])
 
     gyroscope_imu_frame, magnetometer_imu_frame, acceleration_imu_frame = locus.data["Gyroscope"][:, 1:], \
-                                                                          locus.data["Magnetometer"][:, 1:], locus.data[
-                                                                                                                 "Linear Acceleration"][
-                                                                                                             :, 1:]
+        locus.data["Magnetometer"][:, 1:], locus.data["Linear Acceleration"][:, 1:]
     time_frame = locus.data["Gyroscope"][:, 0]
 
     thetas, phis, alphas, directions = [np.empty(len(time_frame) - 2) for _ in range(4)]

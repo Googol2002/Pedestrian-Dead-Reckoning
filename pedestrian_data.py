@@ -99,8 +99,8 @@ class PedestrianLocus(Dataset):
 
         # 前几个数据点有噪声啊
         self.relative_location = self.y_frame[["Time (s)", "Latitude (°)", "Longitude (°)"]].dropna()
-        origin_latitude, origin_longitude = np.mean(self.relative_location["Latitude (°)"][number_of_gps_to_filter:8]),\
-                                            np.mean(self.relative_location["Longitude (°)"][number_of_gps_to_filter:8])
+        origin_latitude, origin_longitude = np.mean(self.relative_location["Latitude (°)"][number_of_gps_to_filter:number_of_gps_to_filter+5]),\
+                                            np.mean(self.relative_location["Longitude (°)"][number_of_gps_to_filter:number_of_gps_to_filter+5])
 
         if not math.isnan(origin_latitude) and not math.isnan(origin_longitude):
             self.relative_location["relative_x (m)"] = [geodesic((origin_latitude, origin_longitude),
