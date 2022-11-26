@@ -69,7 +69,8 @@ def predict(locus: PedestrianLocus, attitude=None, moving_bias=0, pace_inference
     info = {"speeds": speeds, "accelerations": accelerations,
             "thetas": thetas, "phis": phis, "time": time_frame[1:-1],
             "peaks": peaks_index, "directions": directions,
-            "walk_time": time_frame[1 + peaks_index]}
+            "walk_time": time_frame[1 + peaks_index],
+            "locus":locus}
     # 步幅步频
     inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
     walk_positions = np.zeros((len(peaks_index) + 1, 2))
