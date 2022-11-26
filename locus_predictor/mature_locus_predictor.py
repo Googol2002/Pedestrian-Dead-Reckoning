@@ -84,7 +84,7 @@ def predict(locus: PedestrianLocus, attitude=None, degree=0, walk=True, pace_inf
             walk_directions[index] = direction
 
             pace = inference(index, peak)
-            p += pace * np.asarray([cos(direction), sin(direction)])
+            p += pace * np.asarray([cos(np.pi/2 + direction), sin(np.pi/2+direction)])
             walk_positions[index + 1] = p
 
         info["walk_positions"] = walk_positions

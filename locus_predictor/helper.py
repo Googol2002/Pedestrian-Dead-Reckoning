@@ -14,15 +14,10 @@ def calculate_phi_from_gravity(x, y, z):
 @np.vectorize
 def calculate_theta_from_magnetometer(x, y):
     # 我们将(北-南)看作x轴，手机将长轴作为y轴
-    return pi / 2 - arctan2(y, x)
+    return arctan2(x, y)
 
 def measure_initial_attitude(locus: PedestrianLocus, window_size):
     # NOTICE: 他只能用来计算手持姿态
-
-    @np.vectorize
-    def calculate_theta(x, y):
-        # 我们将(北-南)看作x轴，手机将长轴作为y轴
-        return pi / 2 - arctan2(y, x)
 
     gravity_frame = locus.data["Accelerometer"] - locus.data["Linear Acceleration"]
     magnetometer_frame = locus.data["Magnetometer"]
