@@ -71,22 +71,21 @@ def predict(locus: PedestrianLocus, attitude=None, moving_bias=0, pace_inference
             "peaks": peaks_index, "directions": directions,
             "walk_time": time_frame[1 + peaks_index]}
     # 步幅步频
-    if walk:
-        inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
-        walk_positions = np.zeros((len(peaks_index) + 1, 2))
-        walk_directions = np.zeros(len(peaks_index))
-        p = np.zeros(2)
+    inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
+    walk_positions = np.zeros((len(peaks_index) + 1, 2))
+    walk_directions = np.zeros(len(peaks_index))
+    p = np.zeros(2)
 
-        for index, peak in enumerate(peaks_index):
-            direction = directions[peak]
-            walk_directions[index] = direction
+    for index, peak in enumerate(peaks_index):
+        direction = directions[peak]
+        walk_directions[index] = direction
 
-            pace = inference(index, peak)
-            p += pace * np.asarray([cos(np.pi/2 + direction), sin(np.pi/2 + direction)])
-            walk_positions[index + 1] = p
+        pace = inference(index, peak)
+        p += pace * np.asarray([cos(np.pi/2 + direction), sin(np.pi/2 + direction)])
+        walk_positions[index + 1] = p
 
-        info["walk_positions"] = walk_positions
-        info["walk_directions"] = walk_directions
+    info["walk_positions"] = walk_positions
+    info["walk_directions"] = walk_directions
 
     # 插值
     # 汇总数据
