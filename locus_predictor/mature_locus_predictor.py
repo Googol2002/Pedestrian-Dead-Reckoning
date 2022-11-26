@@ -1,12 +1,13 @@
+import numpy as np
 from numpy import cos, sin
+
+from scipy.signal import find_peaks
 from scipy.interpolate import interp1d
 from scipy.spatial.transform import Rotation
-
-import numpy as np
+from magnetic_field_calculator import MagneticFieldCalculator
 
 from locus_predictor.helper import measure_initial_attitude
 from pedestrian_data import PedestrianLocus, PedestrianDataset
-from scipy.signal import find_peaks
 
 # 50Hz 我们假设，人1s内不会迈太多步
 MIN_PERIOD = 20

@@ -67,8 +67,9 @@ class PedestrianDataset(Iterable):
 
 class PedestrianLocus(Dataset):
 
-    def __init__(self, path, window_size,
-                 acceleration_filter=None, gyroscope_filter=None):
+    def __init__(self, path, window_size, number_of_gps_to_filter=4,
+                 acceleration_filter=default_low_pass_filter,
+                 gyroscope_filter=None):
         # 第一个的时间戳将作为最终的时间戳
         x_sub_frame_names = [("Accelerometer", "Accelerometer"),
                              ("Gyroscope", "Gyroscope"),
@@ -98,8 +99,8 @@ class PedestrianLocus(Dataset):
 
         # 前几个数据点有噪声啊
         self.relative_location = self.y_frame[["Time (s)", "Latitude (°)", "Longitude (°)"]].dropna()
-        origin_latitude, origin_longitude = np.mean(self.relative_location["Latitude (°)"][4:8]),\
-                                            np.mean(self.relative_location["Longitude (°)"][4:8])
+        origin_latitude, origin_longitude = np.mean(self.relative_location["Latitude (°)"][number_of_gps_to_filter:8]),\
+                                            np.mean(self.relative_location["Longitude (°)"][number_of_gps_to_filter:8])
 
         if not math.isnan(origin_latitude) and not math.isnan(origin_longitude):
             self.relative_location["relative_x (m)"] = [geodesic((origin_latitude, origin_longitude),
