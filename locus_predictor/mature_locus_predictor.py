@@ -132,4 +132,5 @@ def __aligned_with_gps(locus, info, walk_positions, walk_directions):
 
 if __name__ == "__main__":
     dataset = PedestrianDataset(["Magnetometer"])
+    predict = locus_predictor()
     predict(dataset["NorthEastSouthWest"])
