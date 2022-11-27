@@ -36,7 +36,7 @@ def default_mask(skip_len):
     def mask(y_frame: pd.DataFrame):
         quantile_10 = len(y_frame) - len(y_frame) * 9 // 10
         y_frame.iloc[quantile_10:, [1, 2, 5]] = np.nan
-        y_frame = y_frame.iloc[skip_len:]
+        y_frame = y_frame.iloc[skip_len:].reset_index(drop=True)
 
         return y_frame
 
@@ -69,7 +69,7 @@ class PedestrianDataset(Iterable):
 
 class PedestrianLocus(Dataset):
 
-    def __init__(self, path, window_size, mask, number_of_gps_to_filter=4,
+    def __init__(self, path, window_size, mask,
                  acceleration_filter=default_low_pass_filter,
                  gyroscope_filter=None):
         # 第一个的时间戳将作为最终的时间戳
@@ -89,8 +89,17 @@ class PedestrianLocus(Dataset):
                 lambda col_name: "{}.{}".format(frame_name, col_name) if col_name != "Time (s)" else "Time (s)",
                 frame.columns)
 
-        self.y_frame = mask(
-            pd.read_csv(os.path.join(path, "Location.csv"), encoding="utf-8", dtype='float64'))
+        # 读取Location_input.csv或Mask Location.csv
+        if os.path.exists(os.path.join(path, "Location_input.csv")):
+            self.y_frame = pd.read_csv(os.path.join(path, "Location_input.csv"), encoding="utf-8", dtype='float64')
+        else:
+            self.y_frame = mask(
+                pd.read_csv(os.path.join(path, "Location.csv"), encoding="utf-8", dtype='float64'))
+        self.ans = pd.read_csv(os.path.join(path, "Location.csv"), encoding="utf-8", dtype='float64')
+        # 分别加工GPS数据
+        self.relative_location, self.origin = self.__process_gps_data(self.y_frame, "relative_x (m)", "relative_y (m)")
+        self.ans_relative_location, _ = self.__process_gps_data(self.ans, "relative_x (m)", "relative_y (m)")
+
         self.window_size = window_size
 
         # 预处理阶段
@@ -100,20 +109,19 @@ class PedestrianLocus(Dataset):
         if gyroscope_filter is not None:
             gyroscope_filter(x_sub_frames["Gyroscope"])
 
-        # 前几个数据点有噪声啊
-        self.relative_location = self.y_frame[["Time (s)", "Latitude (°)", "Longitude (°)"]].dropna()
-        origin_latitude, origin_longitude = np.mean(self.relative_location["Latitude (°)"][number_of_gps_to_filter:number_of_gps_to_filter+5]),\
-            np.mean(self.relative_location["Longitude (°)"][number_of_gps_to_filter:number_of_gps_to_filter+5])
-        self.origin = (origin_latitude, origin_longitude)
-        if not math.isnan(origin_latitude) and not math.isnan(origin_latitude):
-            geo_infos = [Geodesic.WGS84.Inverse(origin_latitude, origin_longitude,
-                                                self.relative_location["Latitude (°)"][i],
-                                                self.relative_location["Longitude (°)"][i])
-                         for i in range(len(self.relative_location))]
-            self.relative_location["relative_x (m)"] = [geo_info["s12"] * math.cos(
-                math.pi / 2 - math.radians(geo_info["azi1"])) for geo_info in geo_infos]
-            self.relative_location["relative_y (m)"] = [geo_info["s12"] * math.sin(
-                math.pi / 2 - math.radians(geo_info["azi1"])) for geo_info in geo_infos]
+        # self.relative_location = self.y_frame[["Time (s)", "Latitude (°)", "Longitude (°)"]].dropna()
+        # origin_latitude, origin_longitude = np.mean(self.relative_location["Latitude (°)"][:5]),\
+        #     np.mean(self.relative_location["Longitude (°)"][:5])
+        # self.origin = (origin_latitude, origin_longitude)
+        # if not math.isnan(origin_latitude) and not math.isnan(origin_latitude):
+        #     geo_infos = [Geodesic.WGS84.Inverse(origin_latitude, origin_longitude,
+        #                                         self.relative_location["Latitude (°)"][i],
+        #                                         self.relative_location["Longitude (°)"][i])
+        #                  for i in range(len(self.relative_location))]
+        #     self.relative_location["relative_x (m)"] = [geo_info["s12"] * math.cos(
+        #         math.pi / 2 - math.radians(geo_info["azi1"])) for geo_info in geo_infos]
+        #     self.relative_location["relative_y (m)"] = [geo_info["s12"] * math.sin(
+        #         math.pi / 2 - math.radians(geo_info["azi1"])) for geo_info in geo_infos]
 
         # 合并表
         self.x_frame = reduce(lambda left, right: pd.merge_asof(left, right, on="Time (s)", direction="nearest"),
@@ -141,6 +149,26 @@ class PedestrianLocus(Dataset):
 
     def __iter__(self):
         return (self[i] for i in range(len(self)))
+
+    @staticmethod
+    def __process_gps_data(source_frame, x_label, y_label):
+        # 前几个数据点有噪声啊
+        relative_location = source_frame[["Time (s)", "Latitude (°)", "Longitude (°)"]].dropna()
+        origin_latitude, origin_longitude = np.mean(relative_location["Latitude (°)"][:5]), \
+                                            np.mean(relative_location["Longitude (°)"][:5])
+
+        origin = (origin_latitude, origin_longitude)
+        if not math.isnan(origin_latitude) and not math.isnan(origin_latitude):
+            geo_infos = [Geodesic.WGS84.Inverse(origin_latitude, origin_longitude,
+                                                relative_location["Latitude (°)"][i],
+                                                relative_location["Longitude (°)"][i])
+                         for i in range(len(relative_location))]
+            relative_location[x_label] = [geo_info["s12"] * math.cos(
+                math.pi / 2 - math.radians(geo_info["azi1"])) for geo_info in geo_infos]
+            relative_location[y_label] = [geo_info["s12"] * math.sin(
+                math.pi / 2 - math.radians(geo_info["azi1"])) for geo_info in geo_infos]
+
+        return relative_location, origin
 
     def columns_info(self):
         return self.data_columns
