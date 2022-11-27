@@ -11,7 +11,7 @@ import pandas as pd
 from torch.utils.data import Dataset
 from geographiclib.geodesic import Geodesic
 
-with codecs.open(r"config/config.json", 'r', 'utf-8') as config_file:
+with codecs.open(r"../config/config.json", 'r', 'utf-8') as config_file:
     config_data = json.load(config_file)
     PEDESTRIAN_DATA_PATH = config_data["Data-Path"]
 
@@ -42,6 +42,15 @@ def default_mask(skip_len):
 
     return mask
 
+def do_not_mask(skip_len):
+    def mask(y_frame: pd.DataFrame):
+        quantile_100 = len(y_frame)
+        y_frame.iloc[quantile_100:, [1, 2, 5]] = np.nan
+        y_frame = y_frame.iloc[skip_len:].reset_index(drop=True)
+
+        return y_frame
+
+    return mask
 
 class PedestrianDataset(Iterable):
 
