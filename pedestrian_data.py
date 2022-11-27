@@ -108,20 +108,6 @@ class PedestrianLocus(Dataset):
         if gyroscope_filter is not None:
             gyroscope_filter(x_sub_frames["Gyroscope"])
 
-        # self.relative_location = self.y_frame[["Time (s)", "Latitude (°)", "Longitude (°)"]].dropna()
-        # origin_latitude, origin_longitude = np.mean(self.relative_location["Latitude (°)"][:5]),\
-        #     np.mean(self.relative_location["Longitude (°)"][:5])
-        # self.origin = (origin_latitude, origin_longitude)
-        # if not math.isnan(origin_latitude) and not math.isnan(origin_latitude):
-        #     geo_infos = [Geodesic.WGS84.Inverse(origin_latitude, origin_longitude,
-        #                                         self.relative_location["Latitude (°)"][i],
-        #                                         self.relative_location["Longitude (°)"][i])
-        #                  for i in range(len(self.relative_location))]
-        #     self.relative_location["relative_x (m)"] = [geo_info["s12"] * math.cos(
-        #         math.pi / 2 - math.radians(geo_info["azi1"])) for geo_info in geo_infos]
-        #     self.relative_location["relative_y (m)"] = [geo_info["s12"] * math.sin(
-        #         math.pi / 2 - math.radians(geo_info["azi1"])) for geo_info in geo_infos]
-
         # 合并表
         self.x_frame = reduce(lambda left, right: pd.merge_asof(left, right, on="Time (s)", direction="nearest"),
                               x_sub_frames.values())
