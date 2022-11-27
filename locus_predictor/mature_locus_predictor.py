@@ -39,7 +39,7 @@ def locus_predictor(attitude=None, walk_direction_bias=0, pace_inference=None):
 
         # 记录力学信息
         info = __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
-                                 magnetometer_imu_frame, acceleration_imu_frame, time_frame)
+                                 magnetometer_imu_frame, acceleration_imu_frame, time_frame,walk_direction_bias)
 
         inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
         # 模拟走路
@@ -52,7 +52,7 @@ def locus_predictor(attitude=None, walk_direction_bias=0, pace_inference=None):
 
 
 def __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
-                      magnetometer_imu_frame, acceleration_imu_frame, time_frame):
+                      magnetometer_imu_frame, acceleration_imu_frame, time_frame,walk_direction_bias):
     p, v = np.zeros(3), np.zeros(3)  # 获取一个初态
 
     thetas, phis, alphas, directions = [np.empty(len(time_frame) - 2) for _ in range(4)]
@@ -84,7 +84,7 @@ def __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
     info = {"speeds": speeds, "accelerations": accelerations,
             "thetas": thetas, "phis": phis, "time": time_frame[1:-1],
             "peaks": peaks_index, "directions": directions,
-            "walk_time": time_frame[1 + peaks_index], "locus": locus}
+            "walk_time": time_frame[1 + peaks_index], "locus": locus,"walk_direction_bias":walk_direction_bias}
 
     return info
 
@@ -132,5 +132,5 @@ def __aligned_with_gps(locus, info, walk_positions, walk_directions):
 
 if __name__ == "__main__":
     dataset = PedestrianDataset(["Magnetometer"])
-    predict = locus_predictor()
-    predict(dataset["NorthEastSouthWest"])
+    locus_predictor = locus_predictor()
+    #predict(dataset["NorthEastSouthWest"])
