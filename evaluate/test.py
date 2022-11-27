@@ -32,7 +32,6 @@ def get_dist_error(gt, pred):
     return error
 
 def get_dist_error_meters(gt, pred):
-    print("local_error")
     dist_list = []
     for i in range(int(len(gt) * 0.1), len(gt)):
         vec1=np.array([gt[gt.columns[1]][i], gt[gt.columns[2]][i]])

@@ -99,9 +99,8 @@ def __simulated_walk(locus, info, inference, walk_direction_bias):
     for index, peak in enumerate(peaks_index):
         direction = directions[peak-2: peak+3].mean()
         walk_directions[index] = direction + walk_direction_bias
-
         pace = inference(index, peak)
-        p += pace * np.asarray([cos(np.pi / 2 + direction), sin(np.pi / 2 + direction)])
+        p += pace * np.asarray([cos(np.pi / 2 + walk_directions[index]), sin(np.pi / 2 + walk_directions[index])])
         # y_direction = y_directions[peak][:2]
         # p += pace * y_direction / np.sqrt(y_direction[0] ** 2 + y_direction[1] ** 2)
         walk_positions[index + 1] = p
@@ -113,9 +112,9 @@ def __simulated_walk(locus, info, inference, walk_direction_bias):
     Lati = locus.relative_location["relative_x (m)"].to_numpy()
     Longi = locus.relative_location["relative_y (m)"].to_numpy()
     start_to_end_GPS = np.linalg.norm(np.array([Lati[-1], Longi[-1]]) - np.array([Lati[0], Longi[0]]))
-    print("Compare before correction:",start_to_end_positions,start_to_end_GPS)
+    #print("Compare before correction:",start_to_end_positions,start_to_end_GPS)
     transform=start_to_end_GPS/start_to_end_positions#pace整体乘一个比例
-    print(transform)
+    #print(transform)
 
     #重新算一遍
     walk_positions = np.zeros((len(peaks_index) + 1, 2))
@@ -125,14 +124,10 @@ def __simulated_walk(locus, info, inference, walk_direction_bias):
         direction = directions[peak-2: peak+3].mean()
         walk_directions[index] = direction + walk_direction_bias
         pace = inference(index, peak)*transform
-        p += pace * np.asarray([cos(np.pi / 2 + direction), sin(np.pi / 2 + direction)])
+        p += pace * np.asarray([cos(np.pi / 2 + walk_directions[index]), sin(np.pi / 2 + walk_directions[index])])
         walk_positions[index + 1] = p
 
-    positions, _ = __aligned_with_gps(locus, info, walk_positions, walk_directions)
-    positions = positions.T
-    start_to_end_positions = np.linalg.norm(
-        np.array([positions[0][-1], positions[1][-1]]) - np.array([positions[0][0], positions[1][0]]))
-    print("Compare after correction:", start_to_end_positions, start_to_end_GPS)
+
     info["walk_positions"] = walk_positions
     info["walk_directions"] = walk_directions
 
