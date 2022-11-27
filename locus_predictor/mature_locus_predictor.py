@@ -14,18 +14,18 @@ PROMINENCE = (0.05, None)
 # 假设步幅为0.8m
 PACE_STEP = 0.8
 
-"""
-一个朴素的预测模型（对于p的预测还不是很准，但是对于姿态预测不错）
-即使不涉及姿态，p仍然不准，比如在桌面上画正方形，加入卡尔曼滤波试试看
-
-@:parameter attitude: (theta, phi) 从世界坐标系，旋转到当前坐标系的极角（手机头与地磁的夹角），
-    旋转到当前坐标系的滚角（手机头与地平面的夹角）
-            
-@:return positions: 利用步频步幅得到数据插值而来
-@:return properties: 一些属性
-"""
 
 def locus_predictor(attitude=None, walk_direction_bias=0, pace_inference=None):
+    """
+    一个朴素的预测模型（对于p的预测还不是很准，但是对于姿态预测不错）
+    即使不涉及姿态，p仍然不准，比如在桌面上画正方形，加入卡尔曼滤波试试看
+
+    :param attitude: (theta, phi) 从世界坐标系，旋转到当前坐标系的极角（手机头与地磁的夹角），
+    旋转到当前坐标系的滚角（手机头与地平面的夹角）
+    :param walk_direction_bias: 手动偏移
+    :param pace_inference:步幅推断器
+    :return:一个预测器
+    """
     def predict(locus: PedestrianLocus):
         theta, phi = attitude if attitude else measure_initial_attitude(locus, 30)
         # 这里的姿态矩阵定义是：R^{EARTH}_{IMU}，因此p^{EARTH} = R^{EARTH}_{IMU} p^{IMU}
