@@ -1,7 +1,7 @@
 import datetime
 import math
 from math import pi, cos, sin
-
+import time
 import magnetic_field_calculator
 import numpy as np
 from numpy import arctan2
@@ -91,3 +91,13 @@ CONV_SIZE = 30
 def moving_avg(x):
     return np.convolve(x, np.logspace(0.1, 0.5, CONV_SIZE, endpoint=True) /
                                sum(np.logspace(0.1, 0.5, CONV_SIZE, endpoint=True)), mode="same")
+
+def record_time(func):
+    def wrapper(*args, **kwargs):  # 包装带参函数
+        start_time = time.perf_counter()
+        a = func(*args, **kwargs)  # 包装带参函数
+        end_time = time.perf_counter()
+        print('time=', end_time - start_time)
+        return a  # 有返回值的函数必须给个返回
+
+    return wrapper
