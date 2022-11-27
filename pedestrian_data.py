@@ -32,17 +32,29 @@ def default_low_pass_filter(data):
         data[ax] = signal.filtfilt(b, a, data[ax])  # data为要过滤的信号
 
 
+def default_mask(skip_len):
+    def mask(y_frame: pd.DataFrame):
+        quantile_10 = len(y_frame) - len(y_frame) * 9 // 10
+        y_frame.iloc[quantile_10:, [1, 2, 5]] = np.nan
+        y_frame = y_frame.iloc[skip_len:]
+
+        return y_frame
+
+    return mask
+
+
 class PedestrianDataset(Iterable):
 
-    def __init__(self, scenarios: list, window_size=200,
+    def __init__(self, scenarios: list, window_size=200, mask=None,
                  acceleration_filter=default_low_pass_filter):
         self.loci = dict()
+        mask = mask if mask else default_mask(5)
 
         for paths in (zip(_scenarios[s],
                           [os.path.join(PEDESTRIAN_DATA_PATH, s, f) for f in _scenarios[s]])
                       for s in scenarios):
             for k, path in paths:
-                self.loci[k] = PedestrianLocus(path, window_size,
+                self.loci[k] = PedestrianLocus(path, window_size, mask,
                                                acceleration_filter=acceleration_filter)
 
     def __len__(self):
@@ -57,7 +69,7 @@ class PedestrianDataset(Iterable):
 
 class PedestrianLocus(Dataset):
 
-    def __init__(self, path, window_size, number_of_gps_to_filter=4,
+    def __init__(self, path, window_size, mask, number_of_gps_to_filter=4,
                  acceleration_filter=default_low_pass_filter,
                  gyroscope_filter=None):
         # 第一个的时间戳将作为最终的时间戳
@@ -77,7 +89,8 @@ class PedestrianLocus(Dataset):
                 lambda col_name: "{}.{}".format(frame_name, col_name) if col_name != "Time (s)" else "Time (s)",
                 frame.columns)
 
-        self.y_frame = pd.read_csv(os.path.join(path, "Location.csv"), encoding="utf-8",dtype='float64')
+        self.y_frame = mask(
+            pd.read_csv(os.path.join(path, "Location.csv"), encoding="utf-8", dtype='float64'))
         self.window_size = window_size
 
         # 预处理阶段

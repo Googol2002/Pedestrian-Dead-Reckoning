@@ -35,11 +35,7 @@ def predict(locus: PedestrianLocus, attitude=None, moving_bias=0, pace_inference
     theta, phi = attitude if attitude else measure_initial_attitude(locus, 30)
     # 这里的姿态矩阵定义是：R^{EARTH}_{IMU}，因此p^{EARTH} = R^{EARTH}_{IMU} p^{IMU}
     imu_to_earth = Rotation.from_euler("ZYX", [theta, 0, phi])
-
-    # try:
-    #     imu_to_earth = measure_initial_attitude_advanced(locus, 30)
-    # except ValueError as e:
-    #     pass
+    # imu_to_earth = measure_initial_attitude_advanced(locus, 30)
 
     # 提取传感器信息
     gyroscope_imu_frame, magnetometer_imu_frame, acceleration_imu_frame = locus.data["Gyroscope"][:, 1:], \
@@ -57,7 +53,6 @@ def predict(locus: PedestrianLocus, attitude=None, moving_bias=0, pace_inference
 
 def __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
                       magnetometer_imu_frame, acceleration_imu_frame, time_frame):
-
     p, v = np.zeros(3), np.zeros(3)  # 获取一个初态
 
     thetas, phis, alphas, directions = [np.empty(len(time_frame) - 2) for _ in range(4)]
