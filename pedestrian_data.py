@@ -31,16 +31,6 @@ def default_low_pass_filter(data):
     for ax in columns:
         data[ax] = signal.filtfilt(b, a, data[ax])  # data为要过滤的信号
 
-# 效果不好
-# def default_high_pass_filter(data):
-#     # 采样频率为50 hz, 要滤除0.5hz以下频率成分，
-#     # 即截至频率为0.5hz, 则wn = 2 * 0.5 / 50 = 0.02 == > Wn = 0.02
-#     b, a = signal.butter(8, 0.02, 'highpass')  # 配置滤波器 8 表示滤波器的阶数
-#     columns = data.columns[1:]
-#
-#     for ax in columns:
-#         data[ax] = signal.filtfilt(b, a, data[ax])  # data为要过滤的信号
-
 
 class PedestrianDataset(Iterable):
 

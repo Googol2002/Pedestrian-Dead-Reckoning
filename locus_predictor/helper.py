@@ -1,5 +1,6 @@
 import datetime
-from cmath import pi, cos, sin
+import math
+from math import pi, cos, sin
 
 import magnetic_field_calculator
 import numpy as np
@@ -46,23 +47,30 @@ def measure_initial_attitude(locus: PedestrianLocus, window_size):
 
 magnetic_calculator = MagneticFieldCalculator()
 def measure_initial_attitude_advanced(locus: PedestrianLocus, window_size):
+    if len(locus.y_frame) < 5:
+        raise ValueError("No GPS Data")
+
     result = magnetic_calculator.calculate(
         latitude=locus.origin[0],
         longitude=locus.origin[1],
         altitude=locus.y_frame['Height (m)'].mean(),
         date=datetime.datetime.today()
     )
+    field_value = result['field-value']
 
-    assert(result["inclination"]["units"] == 'deg (down)')
-    assert(result["declination"]["units"] == 'deg (east)')
+    assert(field_value["inclination"]["units"] == 'deg (down)')
+    assert(field_value["declination"]["units"] == 'deg (east)')
 
     gravity_frame = (locus.data["Accelerometer"][:window_size, 1:] -
                      locus.data["Linear Acceleration"][:window_size, 1:]).mean(axis=0)
     magnetometer_frame = locus.data["Magnetometer"][:window_size, 1:].mean(axis=0)
 
-    Rotation.align_vectors([np.array([0, 0, 1]), np.array([sin(), 0, 0])])
+    return Rotation.align_vectors([np.array([0, 0, 1]), np.array([
+        sin(math.radians(field_value["declination"]["value"])) * cos(math.radians(field_value["inclination"]["value"])),
+        cos(math.radians(field_value["declination"]["value"])) * cos(math.radians(field_value["inclination"]["value"])),
+        sin(math.radians(field_value["inclination"]["value"]))])],
+                           [gravity_frame, magnetometer_frame])[0]
 
-    return None, None
 
 def __rotation_x(theta):
     return np.matrix([[1, 0, 0],
