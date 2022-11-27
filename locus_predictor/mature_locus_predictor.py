@@ -13,9 +13,12 @@ MIN_PERIOD = 20
 PROMINENCE = (0.05, None)
 # 假设步幅为0.8m
 PACE_STEP = 0.8
+Magic_A=0.37
+Magic_B=0.000155
+Magic_C=0.1638
 
-
-def locus_predictor(attitude=None, walk_direction_bias=0, pace_inference=None):
+def locus_predictor(attitude=None, walk_direction_bias=0,
+                    magic=None,pace_inference=None):
     """
     一个朴素的预测模型（对于p的预测还不是很准，但是对于姿态预测不错）
     即使不涉及姿态，p仍然不准，比如在桌面上画正方形，加入卡尔曼滤波试试看
@@ -23,9 +26,13 @@ def locus_predictor(attitude=None, walk_direction_bias=0, pace_inference=None):
     :param attitude: (theta, phi) 从世界坐标系，旋转到当前坐标系的极角（手机头与地磁的夹角），
     旋转到当前坐标系的滚角（手机头与地平面的夹角）
     :param walk_direction_bias: 手动偏移
+    :param magic: pace_inference神奇公式需要的参数
     :param pace_inference:步幅推断器
     :return:一个预测器
     """
+    if magic is None:
+        magic = [Magic_A, Magic_B, Magic_C]
+
     def predict(locus: PedestrianLocus):
         theta, phi = attitude if attitude else measure_initial_attitude(locus, 30)
         # 这里的姿态矩阵定义是：R^{EARTH}_{IMU}，因此p^{EARTH} = R^{EARTH}_{IMU} p^{IMU}
@@ -41,6 +48,7 @@ def locus_predictor(attitude=None, walk_direction_bias=0, pace_inference=None):
         info = __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
                                  magnetometer_imu_frame, acceleration_imu_frame, time_frame,walk_direction_bias)
 
+        info["magic"] = magic
         info["inference_times"] = 0
         inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
         # 模拟走路
@@ -49,6 +57,7 @@ def locus_predictor(attitude=None, walk_direction_bias=0, pace_inference=None):
         info["inference_times"] = 1
         inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
         walk_positions, walk_directions = __simulated_walk(locus, info, inference, walk_direction_bias)
+
 
         # 插值
         return __aligned_with_gps(locus, info, walk_positions, walk_directions), info
@@ -128,7 +137,7 @@ def __aligned_with_gps(locus, info, walk_positions, walk_directions):
         directions = interp1d(walk_time, walk_directions, kind='cubic', axis=0, fill_value="extrapolate")\
             (locus.y_frame["location_time"])
 
-        print('walk_position origin', (walk_positions.T[0][0], walk_positions.T[1][0]))
+
         if len(positions) > 0:
             positions -= positions[0]
     else:
