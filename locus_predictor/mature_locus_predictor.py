@@ -42,13 +42,16 @@ def predict(locus: PedestrianLocus, attitude=None, moving_bias=0, pace_inference
         locus.data["Magnetometer"][:, 1:], locus.data["Linear Acceleration"][:, 1:]
     time_frame = locus.data["Gyroscope"][:, 0]
 
+    # 记录力学信息
     info = __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
                              magnetometer_imu_frame, acceleration_imu_frame, time_frame)
 
     inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
-    __simulated_walk(locus, info, inference)
+    # 模拟走路
+    walk_positions, walk_directions = __simulated_walk(locus, info, inference)
 
-    return __aligned_with_gps(locus, info), info
+    # 插值
+    return __aligned_with_gps(locus, info, walk_positions, walk_directions), info
 
 
 def __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
@@ -97,7 +100,7 @@ def __simulated_walk(locus, info, inference):
     walk_directions = np.zeros(len(peaks_index))
     p = np.zeros(2)
     for index, peak in enumerate(peaks_index):
-        direction = directions[peak]
+        direction = directions[peak-2: peak+3].mean()
         walk_directions[index] = direction
 
         pace = inference(index, peak)
@@ -109,9 +112,10 @@ def __simulated_walk(locus, info, inference):
     info["walk_positions"] = walk_positions
     info["walk_directions"] = walk_directions
 
+    return walk_positions, walk_directions
 
-def __aligned_with_gps(locus, info):
-    walk_positions = info["walk_positions"]
+
+def __aligned_with_gps(locus, info, walk_positions, walk_directions):
     peaks_index = info["peaks"]
     walk_time = info["walk_time"]
 
@@ -120,10 +124,13 @@ def __aligned_with_gps(locus, info):
         positions = interp1d(np.concatenate((np.array([0]), walk_time)),
                              walk_positions, kind='cubic', axis=0, fill_value="extrapolate")\
             (locus.y_frame["location_time"])
+        directions = interp1d(walk_time, walk_directions, kind='cubic', axis=0, fill_value="extrapolate")\
+            (locus.y_frame["location_time"])
     else:
         positions = None
+        directions = None
 
-    return positions
+    return positions, directions
 
 
 if __name__ == "__main__":

@@ -99,7 +99,6 @@ class PedestrianLocus(Dataset):
         # 分别加工GPS数据
         self.relative_location, self.origin = self.__process_gps_data(self.y_frame, "relative_x (m)", "relative_y (m)")
         self.ans_relative_location, _ = self.__process_gps_data(self.ans, "relative_x (m)", "relative_y (m)")
-
         self.window_size = window_size
 
         # 预处理阶段
