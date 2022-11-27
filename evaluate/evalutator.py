@@ -1,24 +1,35 @@
 import os
+from math import sqrt, degrees
 
 import numpy as np
 import pandas as pd
+from numpy import arctan2, pi
 
 from evaluate.test import eval_model
-from locus_predictor.mature_locus_predictor import predict
+from locus_predictor.mature_locus_predictor import locus_predictor
 from pedestrian_data import PedestrianLocus, PedestrianDataset, default_low_pass_filter
+
+from geopy.distance import geodesic
+import geopy.distance
 
 
 def evaluate_model(locus: PedestrianLocus, predictor):
     (positions, directions), properties = predictor(locus)
+    origin = geopy.Point(*locus.origin)
+    bearings = np.rad2deg(pi/2 - (pi/2 + directions))
+    destinations = np.array([list(geopy.distance.geodesic(kilometers=sqrt(x**2 + y**2)/1000).
+                             destination(origin, bearing=bearing))[:2]
+                             for x, y, bearing in zip(positions[:, 0], positions[:, 1], bearings)])
 
-    original_y_frame = pd.DataFrame(locus.y_frame.dropna())
+    location_input = pd.read_csv(os.path.join(locus.path, "Location_input.csv"), encoding="utf-8", dtype='float64')
+    location_input_dropped = location_input.dropna()
 
-    output = pd.DataFrame(locus.y_frame)
-    output.iloc[len(original_y_frame):, [1, 2, 5]] = np.concatenate((
-        positions, np.expand_dims(directions, axis=1)))
-    output[original_y_frame.index] = original_y_frame
+    output = pd.DataFrame(location_input)
+    output.iloc[-len(destinations):, [1, 2, 5]] = np.concatenate((
+        destinations, np.expand_dims(bearings, axis=1)), axis=1)
+    output.iloc[location_input_dropped.index] = location_input_dropped
 
-    output.to_csv(os.path.join(locus.path, "Location_output.csv"))
+    output.to_csv(os.path.join(locus.path, "Location_output.csv"), index=False)
 
     eval_model(locus.path)
 
@@ -27,4 +38,4 @@ if __name__ == "__main__":
     dataset = PedestrianDataset(["Magnetometer", "Hand-Walk"], window_size=200,
                                 acceleration_filter=default_low_pass_filter)
 
-    evaluate_model(dataset["test_case0"], predictor=predict)
+    evaluate_model(dataset["test_case0"], predictor=locus_predictor())

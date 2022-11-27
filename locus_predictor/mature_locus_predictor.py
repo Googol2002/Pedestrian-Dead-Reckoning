@@ -129,7 +129,8 @@ def __aligned_with_gps(locus, info, walk_positions, walk_directions):
             (locus.y_frame["location_time"])
 
         print('walk_position origin', (walk_positions.T[0][0], walk_positions.T[1][0]))
-        positions-=positions[0]
+        if len(positions) > 0:
+            positions -= positions[0]
     else:
         positions = None
         directions = None
@@ -140,4 +141,4 @@ def __aligned_with_gps(locus, info, walk_positions, walk_directions):
 if __name__ == "__main__":
     dataset = PedestrianDataset(["Magnetometer"])
     locus_predictor = locus_predictor()
-    #predict(dataset["NorthEastSouthWest"])
+    locus_predictor(dataset["图书馆2"])

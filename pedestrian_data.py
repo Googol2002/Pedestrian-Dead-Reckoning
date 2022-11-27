@@ -77,6 +77,7 @@ class PedestrianLocus(Dataset):
                  acceleration_filter=default_low_pass_filter,
                  gyroscope_filter=None):
         self.path = path
+        self.window_size = window_size
 
         # 第一个的时间戳将作为最终的时间戳
         x_sub_frame_names = [("Accelerometer", "Accelerometer"),
@@ -101,12 +102,14 @@ class PedestrianLocus(Dataset):
         else:
             self.y_frame = mask(
                 pd.read_csv(os.path.join(path, "Location.csv"), encoding="utf-8", dtype='float64'))
+            self.y_frame.to_csv(os.path.join(path, "Location_input.csv"), index=False)
+
         self.y_frame = self.y_frame.iloc[skip_len:].reset_index(drop=True)
-        self.ans = pd.read_csv(os.path.join(path, "Location.csv"), encoding="utf-8", dtype='float64')
+        if os.path.exists(os.path.join(path, "Location.csv")):
+            self.ans = pd.read_csv(os.path.join(path, "Location.csv"), encoding="utf-8", dtype='float64')
+            self.ans_relative_location, _ = self.__process_gps_data(self.ans, "relative_x (m)", "relative_y (m)")
         # 分别加工GPS数据
         self.relative_location, self.origin = self.__process_gps_data(self.y_frame, "relative_x (m)", "relative_y (m)")
-        self.ans_relative_location, _ = self.__process_gps_data(self.ans, "relative_x (m)", "relative_y (m)")
-        self.window_size = window_size
 
         # 预处理阶段
         if acceleration_filter is not None:
