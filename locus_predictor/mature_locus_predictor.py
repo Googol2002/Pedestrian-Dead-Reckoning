@@ -41,8 +41,13 @@ def locus_predictor(attitude=None, walk_direction_bias=0, pace_inference=None):
         info = __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
                                  magnetometer_imu_frame, acceleration_imu_frame, time_frame,walk_direction_bias)
 
+        info["inference_times"] = 0
         inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
         # 模拟走路
+        walk_positions, walk_directions = __simulated_walk(locus, info, inference, walk_direction_bias)
+        info["gps_positions_temp"], info["gps_directions_temp"] = __aligned_with_gps(locus, info, walk_positions, walk_directions)
+        info["inference_times"] = 1
+        inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
         walk_positions, walk_directions = __simulated_walk(locus, info, inference, walk_direction_bias)
 
         # 插值
@@ -105,29 +110,6 @@ def __simulated_walk(locus, info, inference, walk_direction_bias):
         # p += pace * y_direction / np.sqrt(y_direction[0] ** 2 + y_direction[1] ** 2)
         walk_positions[index + 1] = p
 
-    # GPS整体反馈矫正
-    positions,_ = __aligned_with_gps(locus, info, walk_positions, walk_directions)
-    positions=positions.T
-    start_to_end_positions = np.linalg.norm(np.array([positions[0][-1], positions[1][-1]]) - np.array([positions[0][0], positions[1][0]]))
-    Lati = locus.relative_location["relative_x (m)"].to_numpy()
-    Longi = locus.relative_location["relative_y (m)"].to_numpy()
-    start_to_end_GPS = np.linalg.norm(np.array([Lati[-1], Longi[-1]]) - np.array([Lati[0], Longi[0]]))
-    #print("Compare before correction:",start_to_end_positions,start_to_end_GPS)
-    transform=start_to_end_GPS/start_to_end_positions#pace整体乘一个比例
-    #print(transform)
-
-    #重新算一遍
-    walk_positions = np.zeros((len(peaks_index) + 1, 2))
-    walk_directions = np.zeros(len(peaks_index))
-    p = np.zeros(2)
-    for index, peak in enumerate(peaks_index):
-        direction = directions[peak-2: peak+3].mean()
-        walk_directions[index] = direction + walk_direction_bias
-        pace = inference(index, peak)*transform
-        p += pace * np.asarray([cos(np.pi / 2 + walk_directions[index]), sin(np.pi / 2 + walk_directions[index])])
-        walk_positions[index + 1] = p
-
-
     info["walk_positions"] = walk_positions
     info["walk_directions"] = walk_directions
 
@@ -146,6 +128,8 @@ def __aligned_with_gps(locus, info, walk_positions, walk_directions):
         directions = interp1d(walk_time, walk_directions, kind='cubic', axis=0, fill_value="extrapolate")\
             (locus.y_frame["location_time"])
 
+        print('walk_position origin', (walk_positions.T[0][0], walk_positions.T[1][0]))
+        positions-=positions[0]
     else:
         positions = None
         directions = None
