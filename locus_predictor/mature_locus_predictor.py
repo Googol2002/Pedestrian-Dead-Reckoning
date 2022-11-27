@@ -18,40 +18,37 @@ PACE_STEP = 0.8
 一个朴素的预测模型（对于p的预测还不是很准，但是对于姿态预测不错）
 即使不涉及姿态，p仍然不准，比如在桌面上画正方形，加入卡尔曼滤波试试看
 
-@:parameter theta: 从世界坐标系，旋转到当前坐标系的极角（手机头与地磁的夹角）
-@:parameter phi: 从世界坐标系，旋转到当前坐标系的仰角（手机头与地平面的夹角）
-@:parameter no_rotation：默认存在旋转为False，当设置为True后，将不再考虑姿态矫正
-@:parameter walk: 假设人走路时，加速度方向与人移动方向相同，默认为None；
-            True：则会开启假设，并将positions改用步幅计算
-            False：则会关闭假设，并将positions改用步幅计算
-            None：利用牛顿力学计算positions
+@:parameter attitude: (theta, phi) 从世界坐标系，旋转到当前坐标系的极角（手机头与地磁的夹角），
+    旋转到当前坐标系的滚角（手机头与地平面的夹角）
             
 @:return positions: 利用步频步幅得到数据插值而来
 @:return properties: 一些属性
 """
 
+def locus_predictor(attitude=None, walk_direction_bias=0, pace_inference=None):
+    def predict(locus: PedestrianLocus):
+        theta, phi = attitude if attitude else measure_initial_attitude(locus, 30)
+        # 这里的姿态矩阵定义是：R^{EARTH}_{IMU}，因此p^{EARTH} = R^{EARTH}_{IMU} p^{IMU}
+        imu_to_earth = Rotation.from_euler("ZYX", [theta, 0, phi])
+        # imu_to_earth = measure_initial_attitude_advanced(locus, 30)
 
-def predict(locus: PedestrianLocus, attitude=None, moving_bias=0, pace_inference=None):
-    theta, phi = attitude if attitude else measure_initial_attitude(locus, 30)
-    # 这里的姿态矩阵定义是：R^{EARTH}_{IMU}，因此p^{EARTH} = R^{EARTH}_{IMU} p^{IMU}
-    imu_to_earth = Rotation.from_euler("ZYX", [theta, 0, phi])
-    # imu_to_earth = measure_initial_attitude_advanced(locus, 30)
+        # 提取传感器信息
+        gyroscope_imu_frame, magnetometer_imu_frame, acceleration_imu_frame = locus.data["Gyroscope"][:, 1:], \
+            locus.data["Magnetometer"][:, 1:], locus.data["Linear Acceleration"][:, 1:]
+        time_frame = locus.data["Gyroscope"][:, 0]
 
-    # 提取传感器信息
-    gyroscope_imu_frame, magnetometer_imu_frame, acceleration_imu_frame = locus.data["Gyroscope"][:, 1:], \
-        locus.data["Magnetometer"][:, 1:], locus.data["Linear Acceleration"][:, 1:]
-    time_frame = locus.data["Gyroscope"][:, 0]
+        # 记录力学信息
+        info = __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
+                                 magnetometer_imu_frame, acceleration_imu_frame, time_frame)
 
-    # 记录力学信息
-    info = __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
-                             magnetometer_imu_frame, acceleration_imu_frame, time_frame)
+        inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
+        # 模拟走路
+        walk_positions, walk_directions = __simulated_walk(locus, info, inference, walk_direction_bias)
 
-    inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
-    # 模拟走路
-    walk_positions, walk_directions = __simulated_walk(locus, info, inference)
+        # 插值
+        return __aligned_with_gps(locus, info, walk_positions, walk_directions), info
 
-    # 插值
-    return __aligned_with_gps(locus, info, walk_positions, walk_directions), info
+    return predict
 
 
 def __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
@@ -92,7 +89,7 @@ def __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
     return info
 
 
-def __simulated_walk(locus, info, inference):
+def __simulated_walk(locus, info, inference, walk_direction_bias):
     peaks_index = info["peaks"]
     directions = info["directions"]
 
@@ -101,7 +98,7 @@ def __simulated_walk(locus, info, inference):
     p = np.zeros(2)
     for index, peak in enumerate(peaks_index):
         direction = directions[peak-2: peak+3].mean()
-        walk_directions[index] = direction
+        walk_directions[index] = direction + walk_direction_bias
 
         pace = inference(index, peak)
         p += pace * np.asarray([cos(np.pi / 2 + direction), sin(np.pi / 2 + direction)])

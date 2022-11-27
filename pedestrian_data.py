@@ -11,7 +11,7 @@ import pandas as pd
 from torch.utils.data import Dataset
 from geographiclib.geodesic import Geodesic
 
-with codecs.open(r"../config/config.json", 'r', 'utf-8') as config_file:
+with codecs.open(r"config/config.json", 'r', 'utf-8') as config_file:
     config_data = json.load(config_file)
     PEDESTRIAN_DATA_PATH = config_data["Data-Path"]
 
@@ -36,7 +36,6 @@ def default_mask(skip_len):
     def mask(y_frame: pd.DataFrame):
         quantile_10 = len(y_frame) - len(y_frame) * 9 // 10
         y_frame.iloc[quantile_10:, [1, 2, 5]] = np.nan
-        y_frame = y_frame.iloc[skip_len:].reset_index(drop=True)
 
         return y_frame
 
@@ -44,17 +43,13 @@ def default_mask(skip_len):
 
 def do_not_mask(skip_len):
     def mask(y_frame: pd.DataFrame):
-        quantile_100 = len(y_frame)
-        y_frame.iloc[quantile_100:, [1, 2, 5]] = np.nan
-        y_frame = y_frame.iloc[skip_len:].reset_index(drop=True)
-
         return y_frame
 
     return mask
 
 class PedestrianDataset(Iterable):
 
-    def __init__(self, scenarios: list, window_size=200, mask=None,
+    def __init__(self, scenarios: list, window_size=200, mask=None, skip_len=5,
                  acceleration_filter=default_low_pass_filter):
         self.loci = dict()
         mask = mask if mask else default_mask(5)
@@ -63,7 +58,7 @@ class PedestrianDataset(Iterable):
                           [os.path.join(PEDESTRIAN_DATA_PATH, s, f) for f in _scenarios[s]])
                       for s in scenarios):
             for k, path in paths:
-                self.loci[k] = PedestrianLocus(path, window_size, mask,
+                self.loci[k] = PedestrianLocus(path, window_size, mask, skip_len,
                                                acceleration_filter=acceleration_filter)
 
     def __len__(self):
@@ -78,9 +73,11 @@ class PedestrianDataset(Iterable):
 
 class PedestrianLocus(Dataset):
 
-    def __init__(self, path, window_size, mask,
+    def __init__(self, path, window_size, mask, skip_len,
                  acceleration_filter=default_low_pass_filter,
                  gyroscope_filter=None):
+        self.path = path
+
         # 第一个的时间戳将作为最终的时间戳
         x_sub_frame_names = [("Accelerometer", "Accelerometer"),
                              ("Gyroscope", "Gyroscope"),
@@ -104,6 +101,7 @@ class PedestrianLocus(Dataset):
         else:
             self.y_frame = mask(
                 pd.read_csv(os.path.join(path, "Location.csv"), encoding="utf-8", dtype='float64'))
+        self.y_frame = self.y_frame.iloc[skip_len:].reset_index(drop=True)
         self.ans = pd.read_csv(os.path.join(path, "Location.csv"), encoding="utf-8", dtype='float64')
         # 分别加工GPS数据
         self.relative_location, self.origin = self.__process_gps_data(self.y_frame, "relative_x (m)", "relative_y (m)")
