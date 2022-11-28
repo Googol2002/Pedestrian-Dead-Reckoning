@@ -19,21 +19,9 @@ def plot_locus(Lati,Longi,label="TBD",cut_begin=CUT_BEGIN):
     # plt.ylabel("Longitude (°)")
     plt.text(Lati[0], Longi[0], 's', fontsize=10)
     plt.text(Lati[-1], Longi[-1], 'e', fontsize=10)
-    plt.plot(Lati, Longi, label=label)#, '+', markersize=1
+    plt.plot(Lati, Longi,'+', markersize=1, label=label, )#
     plt.legend(loc=0)
-# l, r = (0, 9)  # 画图范围
-# dataset = PedestrianDataset(["Hand-Walk"], window_size=100)  # 指定文件夹
-# for num, (name, locus) in enumerate(dataset):
-#     if num in range(l, r):
-#         print("正在遍历移动轨迹{}... \n".format(name))
-#         locus_pair = np.array(list(zip(locus.y_frame["Latitude (°)"], locus.y_frame["Longitude (°)"])))
-#         print("轨迹长度: ", len(locus_pair))
-#         Lati = locus_pair.T[0]
-#         Longi = locus_pair.T[1]
-#         plot_locus(Lati,Longi, label="{}".format(name))
-#     if num >= r:
-#         break
-#plt.show()
+
 
 
 
@@ -64,7 +52,18 @@ def plot_gravity(sample:dict,title="TBD"):
 # plt.show()
 if __name__ == "__main__":
     matplotlib.use('TkAgg')
-    dataset = PedestrianDataset(["Hand-Walk"], window_size=1000)
-    locus=dataset['Hand-Walk-02-001']
-    time_frame = locus.data["Gyroscope"][:, 0]
-#position,info=predict(locus,walk=True)
+
+    l, r = (0, 9)  # 画图范围
+    dataset = PedestrianDataset(["TestSet"], window_size=100,skip_len=5)  # 指定文件夹
+    for num, (name, locus) in enumerate(dataset):
+        if num in range(l, r):
+            print("正在遍历移动轨迹{}... \n".format(name))
+            plt.subplot(33 * 10 + num % 10 + 1)
+            locus_pair = np.array(list(zip(locus.y_frame["Latitude (°)"], locus.y_frame["Longitude (°)"])))
+            print("轨迹长度: ", len(locus_pair))
+            Lati = locus_pair.T[0]
+            Longi = locus_pair.T[1]
+            plot_locus(Lati,Longi, label="{}".format(name))
+        if num >= r:
+            break
+    plt.show()
