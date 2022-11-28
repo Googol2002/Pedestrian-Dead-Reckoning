@@ -43,5 +43,17 @@ def get_dist_error_meters(gt, pred):
     error = sum(dist_list) / len(dist_list)
     return error
 
+def get_dist_train_error_meters(gt, pred):#训练时只能按前10%GPS更新参数
+    dist_list = []
+    for i in range(0,int(len(gt) * 0.1)):
+        vec1=np.array([gt[gt.columns[1]][i], gt[gt.columns[2]][i]])
+        vec2=np.array([pred[pred.columns[1]][i], pred[pred.columns[2]][i]])
+        dist = np.linalg.norm(vec1 - vec2)
+        #print(vec1,vec2,dist)
+        dist_list.append(dist)
+        #print(*dist_list)
+    error = sum(dist_list) / len(dist_list)
+    return error
+
 if __name__ == "__main__":
     eval_model("test_case0")
