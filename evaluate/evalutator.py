@@ -7,6 +7,7 @@ from numpy import arctan2, pi
 
 from evaluate.test import eval_model
 from locus_predictor.mature_locus_predictor import locus_predictor
+from pace_predictor.predict_pace import magic_pace_inference
 from pedestrian_data import PedestrianLocus, PedestrianDataset, default_low_pass_filter
 
 from geopy.distance import geodesic
@@ -38,4 +39,4 @@ if __name__ == "__main__":
     dataset = PedestrianDataset(["Magnetometer", "Hand-Walk"], window_size=200,
                                 acceleration_filter=default_low_pass_filter)
 
-    evaluate_model(dataset["test_case0"], predictor=locus_predictor())
+    evaluate_model(dataset["test_case0"], predictor=locus_predictor(pace_inference=magic_pace_inference))

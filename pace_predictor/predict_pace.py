@@ -26,7 +26,7 @@ import scipy
 import matplotlib.pyplot as plt
 from locus_predictor.mature_locus_predictor import locus_predictor, __simulated_walk, __aligned_with_gps
 from plot_dataset import plot_locus
-from acc_pace_inference import ema, pace_inference
+from pace_predictor.acc_pace_inference import ema, pace_inference
 
 matplotlib.use('TkAgg')
 
