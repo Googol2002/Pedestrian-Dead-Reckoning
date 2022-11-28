@@ -15,10 +15,14 @@ def eval_model(test_path):
 
 def get_dir_error(gt, pred):
     dir_list = []
+    cnt = 0
     for i in range(int(len(gt) * 0.1), len(gt)):
         dir = min(abs(gt[gt.columns[5]][i] - pred[pred.columns[5]][i]), 360 - abs(gt[gt.columns[5]][i] - pred[pred.columns[5]][i]))
         dir_list.append(dir)
+        if dir > 15:
+            cnt += 1
     error = sum(dir_list) / len(dir_list)
+    print(">15° percent: {}%".format(cnt/len(dir_list)*100))
     return error
 
 
