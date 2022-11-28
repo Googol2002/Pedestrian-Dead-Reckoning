@@ -18,11 +18,12 @@ Magic_B=0.000155
 Magic_C=0.1638
 
 def locus_predictor(attitude=None, walk_direction_bias=0,
-                    magic=None, pace_inference=None, transform=None):
+                    magic=None, pace_inference=None, transform=None, euler="ZXY"):
     """
     一个朴素的预测模型（对于p的预测还不是很准，但是对于姿态预测不错）
     即使不涉及姿态，p仍然不准，比如在桌面上画正方形，加入卡尔曼滤波试试看
 
+    :param euler:
     :param attitude: (theta, phi) 从世界坐标系，旋转到当前坐标系的极角（手机头与地磁的夹角），
     旋转到当前坐标系的滚角（手机头与地平面的夹角）
     :param walk_direction_bias: 手动偏移
@@ -47,14 +48,16 @@ def locus_predictor(attitude=None, walk_direction_bias=0,
 
         # 记录力学信息
         info = __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
-                                 magnetometer_imu_frame, acceleration_imu_frame, time_frame,walk_direction_bias)
+                                 magnetometer_imu_frame, acceleration_imu_frame, time_frame,
+                                 walk_direction_bias, euler=euler)
 
         info["magic"] = magic
         # 行人路经预推演
         info["inference_times"] = 0
         inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
         walk_positions, walk_directions = __simulated_walk(locus, info, inference, walk_direction_bias)
-        info["gps_positions_temp"], info["gps_directions_temp"] = __aligned_with_gps(locus, info, walk_positions, walk_directions)
+        info["gps_positions_temp"], info["gps_directions_temp"] = __aligned_with_gps(locus, info, walk_positions,
+                                                                                     walk_directions)
         # if info["gps_positions_temp"] > 0:
         #     info["gps_positions_temp"] -= info["gps_positions_temp"][0]
 
@@ -75,7 +78,8 @@ def locus_predictor(attitude=None, walk_direction_bias=0,
 
 
 def __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
-                      magnetometer_imu_frame, acceleration_imu_frame, time_frame,walk_direction_bias):
+                      magnetometer_imu_frame, acceleration_imu_frame, time_frame,
+                      walk_direction_bias, euler="ZXY"):
     p, v = np.zeros(3), np.zeros(3)  # 获取一个初态
 
     thetas, phis, alphas, directions = [np.empty(len(time_frame) - 2) for _ in range(4)]
@@ -87,9 +91,11 @@ def __record_movement(locus, imu_to_earth, gyroscope_imu_frame,
         imu_to_earth = imu_to_earth * Rotation.from_euler("xyz", delta_t * gyroscope_imu)
 
         # 计算姿态角
-        # thetas[index], phis[index], alphas[index] = imu_to_earth.as_euler("ZYX")
+        if euler == "ZYX":
+            thetas[index], phis[index], alphas[index] = imu_to_earth.as_euler("ZYX")
         # 可以解决摆手机问题
-        thetas[index], alphas[index], phis[index] = imu_to_earth.as_euler("ZXY")
+        if euler == "ZXY":
+            thetas[index], alphas[index], phis[index] = imu_to_earth.as_euler("ZXY")
         # y_directions[index] = imu_to_earth.apply(np.array([0, 1, 0]))
 
         # 牛顿力学
