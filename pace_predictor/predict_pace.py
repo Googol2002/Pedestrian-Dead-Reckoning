@@ -10,7 +10,7 @@ import math
 from scipy.signal import find_peaks
 from scipy.optimize import minimize
 import scipy.optimize
-from evaluate.test import get_dist_error_meters
+from evaluate.test import get_dist_error_meters,get_dist_train_error_meters
 from locus_predictor.helper import record_time
 import numpy as np
 import pandas as pd
@@ -128,7 +128,10 @@ def save_output(position, location_time, output_path, locus):
     # pred = pd.read_csv(os.path.join(output_path, "Location_output.csv"))
     gt = locus.relative_location.iloc[:, [0, 3, 4]]
     pred = df
-    dist_error = get_dist_error_meters(gt, pred)
+    #后90%GPS算分
+    #dist_error = get_dist_error_meters(gt, pred)
+    #前10%GPS算分
+    dist_error = get_dist_train_error_meters(gt, pred)
     print("error：", dist_error)
     return dist_error
 
@@ -153,6 +156,7 @@ def search_func_magic(all_magic, *args):
 @record_time
 def plot_result(data):
     path = "C:\\Users\\Shawn\\Desktop\\python_work\\pytorch\\Dataset-of-Pedestrian-Dead-Reckoning\\Hand-Walk"
+    #path = "C:\\Users\\Shawn\\Desktop\\python_work\\pytorch\\Dataset-of-Pedestrian-Dead-Reckoning\\TestSet"
     output_path = os.path.join(path, data)
     dataset = PedestrianDataset(["Hand-Walk"], window_size=1000, mask=do_not_mask(0))
     locus = dataset[data]
@@ -189,10 +193,10 @@ def plot_result(data):
         x0 = np.asarray([0, 9.74006574e-01, 2.96235470e-04, -1.11967489e-01])
         # all_magic = scipy.optimize.fmin_cg(search_func_magic, x0, args=(locus, location_time, output_path))
         all_magic = minimize(search_func_magic, x0, args=(locus, location_time, output_path)
-                             , tol=1e-2, options={'maxiter': 20, 'disp': True})
+                             , tol=1e-2, options={'maxiter': 10, 'disp': True})
         print("all_magic", all_magic)
         all_magic = all_magic['x']
-        # all_magic=[ 2.70913248e-01,  9.80405173e-01,  3.51281858e-04, -9.77679938e-02]
+
 
         predictor_acc = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=all_magic[0],
                                         magic=all_magic[1:])
@@ -213,9 +217,9 @@ def plot_result(data):
 
 # 78不要
 # plt.subplot(221)
-# plot_result("Hand-Walk-02-001")
+# plot_result("Hand-Walk-02-001")#[-2.00753911e-01,  5.69380802e-01, -8.49469774e-05,  5.27603339e-02]
 # plt.subplot(222)
-# plot_result("Hand-Walk-02-002")
+# plot_result("Hand-Walk-02-002")#[ 1.50019425,  0.89199096, -0.00565934, -2.25026012]
 # plt.subplot(223)
 # plot_result("Hand-Walk-02-003")
 # plt.subplot(224)
