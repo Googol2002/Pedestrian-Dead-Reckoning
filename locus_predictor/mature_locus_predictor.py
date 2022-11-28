@@ -18,7 +18,7 @@ Magic_B=0.000155
 Magic_C=0.1638
 
 def locus_predictor(attitude=None, walk_direction_bias=0,
-                    magic=None,pace_inference=None):
+                    magic=None, pace_inference=None, transform=None):
     """
     一个朴素的预测模型（对于p的预测还不是很准，但是对于姿态预测不错）
     即使不涉及姿态，p仍然不准，比如在桌面上画正方形，加入卡尔曼滤波试试看
@@ -28,6 +28,7 @@ def locus_predictor(attitude=None, walk_direction_bias=0,
     :param walk_direction_bias: 手动偏移
     :param magic: pace_inference神奇公式需要的参数
     :param pace_inference:步幅推断器
+    :param transform:
     :return:一个预测器
     """
     if magic is None:
@@ -65,7 +66,10 @@ def locus_predictor(attitude=None, walk_direction_bias=0,
         #     info["gps_positions_temp"] -= (info["gps_positions_temp"][locus.latest_gps_index])
 
         # 插值
-        return __aligned_with_gps(locus, info, walk_positions, walk_directions), info
+        r = __aligned_with_gps(locus, info, walk_positions, walk_directions)
+        if transform is not None:
+            r = transform(locus, r)
+        return r, info
 
     return predict
 
