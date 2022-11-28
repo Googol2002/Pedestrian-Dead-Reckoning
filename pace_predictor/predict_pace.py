@@ -220,5 +220,6 @@ def plot_result(data):
 # plot_result("Hand-Walk-02-003")
 # plt.subplot(224)
 # plot_result("Hand-Walk-02-005")
-plot_result("Hand-Walk-02-004")
-plt.show()
+if __name__ == "__main__":
+    plot_result("Hand-Walk-02-004")
+    plt.show()
