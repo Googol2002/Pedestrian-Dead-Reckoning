@@ -36,11 +36,12 @@ def measure_initial_attitude(locus: PedestrianLocus, window_size):
                                  gravity_frame[:window_size, 3].mean())
 
     # 这里得到的theta是沿z轴转动的yaw
-    north = Rotation.from_euler("X", initial_phi).apply(magnetometer_frame[:window_size, 1:].mean(axis=0))
-    initial_theta = calculate_theta_from_magnetometer(north[0], north[1])
-
-    # TODO: 下面我们要利用GPS数据做一个纠偏
-    # gps_moving_direction = locus.y_frame[""]
+    magnetometer_in_window = magnetometer_frame[:window_size, 1:]
+    if len(magnetometer_in_window[~np.isnan(magnetometer_in_window)]) > 0:
+        north = Rotation.from_euler("X", initial_phi).apply(magnetometer_frame[:window_size, 1:].mean(axis=0))
+        initial_theta = calculate_theta_from_magnetometer(north[0], north[1])
+    else:
+        initial_theta = 0
 
     return initial_theta, initial_phi
 

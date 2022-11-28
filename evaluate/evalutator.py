@@ -2,13 +2,14 @@ import math
 import os
 from math import sqrt, degrees
 
+import matplotlib.pyplot as plt
+
 import numpy as np
 import pandas as pd
 from numpy import arctan2, pi
 
 from evaluate.test import eval_model
 from locus_predictor.mature_locus_predictor import locus_predictor
-from pace_predictor import acc_pace_inference
 from pace_predictor.predict_pace import magic_pace_inference
 from pedestrian_data import PedestrianLocus, PedestrianDataset, default_low_pass_filter
 
@@ -43,9 +44,20 @@ def evaluate_model(locus: PedestrianLocus, predictor, compare=True):
         eval_model(locus.path)
 
 
+def plot_model_output(locus: PedestrianLocus):
+    output_frame = pd.read_csv(os.path.join(locus.path, "Location_output.csv"))
+    input_frame = pd.read_csv(os.path.join(locus.path, "Location_input.csv"))
+
+    plt.plot(output_frame["Longitude (°)"], output_frame["Latitude (°)"], label="Output")
+    plt.plot(input_frame["Longitude (°)"], input_frame["Latitude (°)"], label="Input")
+    plt.legend()
+    plt.show()
+
+
 if __name__ == "__main__":
     dataset = PedestrianDataset(["Magnetometer", "Hand-Walk", "TestSet"], window_size=200,
                                 acceleration_filter=default_low_pass_filter)
 
-    evaluate_model(dataset["test1"],
+    evaluate_model(dataset["test4"],
                    predictor=locus_predictor(pace_inference=magic_pace_inference), compare=False)
+    plot_model_output(dataset["test4"])
