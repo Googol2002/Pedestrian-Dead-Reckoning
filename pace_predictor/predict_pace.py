@@ -28,6 +28,8 @@ from locus_predictor.mature_locus_predictor import locus_predictor, __simulated_
 from plot_dataset import plot_locus
 from pace_predictor.acc_pace_inference import ema, pace_inference
 
+
+
 Train_rate = 0.1  # 使用前10%标记预测步幅
 
 
@@ -92,7 +94,7 @@ Train_rate = 0.1  # 使用前10%标记预测步幅
 def magic_pace_inference(info):
     accelerations = info["accelerations"]
     magic_number = info['magic']
-    # print(magic_number)
+    print(magic_number)
     a_vec = np.sqrt(np.power(accelerations[:, 0], 2) + np.power(accelerations[:, 1], 2))
     time = info["time"]
     peaks_index, _ = find_peaks(a_vec, distance=MIN_PERIOD, prominence=PROMINENCE)
@@ -144,19 +146,23 @@ def search_func_bias(walk_direction_bias, *args):
 def search_func_magic(all_magic, *args):
     locus, location_time, output_path = args
     walk_direction_bias = all_magic[0]
-    magic = all_magic[1:]
+    magic = all_magic[-3:]
     predictor_base = locus_predictor(pace_inference=magic_pace_inference,
                                      walk_direction_bias=walk_direction_bias, magic=magic)
     (position, direction), info = predictor_base(locus, )
 
     return save_output(position, location_time, output_path, locus)
 
-@record_time
+
 def plot_result(data):
-    path = "C:\\Users\\Shawn\\Desktop\\python_work\\pytorch\\Dataset-of-Pedestrian-Dead-Reckoning\\Hand-Walk"
+    #data_dir="Hand-Walk"
+    data_dir="test_case0"
+    path_dir="C:\\Users\\Shawn\\Desktop\\python_work\\pytorch\\Dataset-of-Pedestrian-Dead-Reckoning"
+    path =os.path.join(path_dir, data_dir)
+    #path = "C:\\Users\\Shawn\\Desktop\\python_work\\pytorch\\Dataset-of-Pedestrian-Dead-Reckoning\\test_case0"
     #path = "C:\\Users\\Shawn\\Desktop\\python_work\\pytorch\\Dataset-of-Pedestrian-Dead-Reckoning\\TestSet"
     output_path = os.path.join(path, data)
-    dataset = PedestrianDataset(["Hand-Walk"], window_size=1000, mask=do_not_mask(0))
+    dataset = PedestrianDataset([data_dir], window_size=1000, mask=do_not_mask())
     locus = dataset[data]
     location_time = locus.y_frame["location_time"]
 
@@ -174,56 +180,82 @@ def plot_result(data):
     # (position,direction),info=predictor_base(locus,)
     # save_output(position,location_time,output_path,locus)
     # plot_locus(position.T[0],position.T[1],label='bias:{}'.format(bias))
-
+    @record_time
     def find_bias():
         # 寻最优bias:针对magic_pace_inference
         x0 = np.asarray(0)
         bias = minimize(search_func_bias, x0, args=(locus, location_time, output_path))
         print("bias", bias)
-        bias = bias['x']
+        bias ,error= bias['x'],bias['fun']
+
+        #bias=[0.35821358]
         predictor_acc = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=bias)
         (position, direction), info = predictor_acc(locus)
         save_output(position, location_time, output_path, locus)
-        plot_locus(position.T[0], position.T[1], label='acc_pace')
+        plot_locus(position.T[0], position.T[1], label='bias_only:{}'.format(error))
 
+    @record_time
     def find_magic():
         # 寻最优magic：针对magic_pace_inference
-        x0 = np.asarray([0, 9.74006574e-01, 2.96235470e-04, -1.11967489e-01])
+        x0 = np.asarray([Magic_A,Magic_B,Magic_C])
+        # all_magic = scipy.optimize.fmin_cg(search_func_magic, x0, args=(locus, location_time, output_path))
+        magic = minimize(search_func_magic, x0, args=(locus, location_time, output_path)
+                             , tol=1e-2, options={'maxiter': 20, 'disp': True})
+        print("magic", magic)
+        magic,error = magic['x'],magic['fun']
+        # magic=[0.36171501, 0.00148213, 0.5621904 ]
+        # error = 1
+        predictor_acc = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=0,
+                                        magic=magic)
+        (position, direction), info = predictor_acc(locus)
+        save_output(position, location_time, output_path, locus)
+        plot_locus(position.T[0], position.T[1], label='magic_only:{}'.format(error))
+
+    @record_time
+    def find_all_magic():
+        # 寻所有参数：针对magic_pace_inference
+        x0 = np.asarray([0, Magic_A,Magic_B,Magic_C])
         # all_magic = scipy.optimize.fmin_cg(search_func_magic, x0, args=(locus, location_time, output_path))
         all_magic = minimize(search_func_magic, x0, args=(locus, location_time, output_path)
-                             , tol=1e-2, options={'maxiter': 10, 'disp': True})
+                             , tol=1e-2, options={'maxiter': 20, 'disp': True})
         print("all_magic", all_magic)
-        all_magic = all_magic['x']
+        all_magic,error = all_magic['x'],all_magic['fun']
 
-
+        #all_magic=[  0.30234795,  -0.42075507, 229.81865892,  -0.89270903]
         predictor_acc = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=all_magic[0],
                                         magic=all_magic[1:])
         (position, direction), info = predictor_acc(locus)
         save_output(position, location_time, output_path, locus)
-        plot_locus(position.T[0], position.T[1], label='acc_pace')
+        plot_locus(position.T[0], position.T[1], label='acc_pace:{}'.format(error))
 
     def plot_GPS():
         # plot GPS
-        Lati = locus.relative_location["relative_x (m)"].to_numpy()
-        Longi = locus.relative_location["relative_y (m)"].to_numpy()
+        # Lati = locus.relative_location["relative_x (m)"].to_numpy()
+        # Longi = locus.relative_location["relative_y (m)"].to_numpy()
+        Lati = locus.ans_relative_location["relative_x (m)"].to_numpy()
+        Longi = locus.ans_relative_location["relative_y (m)"].to_numpy()
         plot_locus(Lati, Longi, label='GPS')
         plt.title(data)
 
+    #find_bias()
     find_magic()
+    # find_all_magic()
     plot_GPS()
 
-
-# 78不要
-# plt.subplot(221)
 # plot_result("Hand-Walk-02-001")#[-2.00753911e-01,  5.69380802e-01, -8.49469774e-05,  5.27603339e-02]
-# plt.subplot(222)
 # plot_result("Hand-Walk-02-002")#[ 1.50019425,  0.89199096, -0.00565934, -2.25026012]
-# plt.subplot(223)
-# plot_result("Hand-Walk-02-003")
-# plt.subplot(224)
-# plot_result("Hand-Walk-02-005")
+
 if __name__ == "__main__":
     matplotlib.use('TkAgg')
-
-    plot_result("Hand-Walk-02-004")
+    # 78不要
+    # plt.subplot(221)
+    # plot_result("Hand-Walk-02-006")
+    # plt.subplot(222)
+    # plot_result("Hand-Walk-02-009")
+    # plt.subplot(223)
+    # plot_result("Hand-Walk-02-003")
+    # plt.subplot(224)
+    # plot_result("Hand-Walk-02-005")
+    #plot_result("Hand-Walk-02-004")
+    plot_result("test_case0-00-000")
     plt.show()
