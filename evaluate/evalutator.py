@@ -1,3 +1,4 @@
+import math
 import os
 from math import sqrt, degrees
 
@@ -7,6 +8,7 @@ from numpy import arctan2, pi
 
 from evaluate.test import eval_model
 from locus_predictor.mature_locus_predictor import locus_predictor
+from pace_predictor import acc_pace_inference
 from pace_predictor.predict_pace import magic_pace_inference
 from pedestrian_data import PedestrianLocus, PedestrianDataset, default_low_pass_filter
 
@@ -14,12 +16,17 @@ from geopy.distance import geodesic
 import geopy.distance
 
 
-def evaluate_model(locus: PedestrianLocus, predictor):
+def __bearing(x, y):
+    return math.degrees(arctan2(x, y))
+
+
+def evaluate_model(locus: PedestrianLocus, predictor, compare=True):
     (positions, directions), properties = predictor(locus)
-    origin = geopy.Point(*locus.origin)
+    positions = positions - positions[locus.latest_gps_index]
+    origin = geopy.Point(*locus.latest_gps_data)
     bearings = np.rad2deg(pi/2 - (pi/2 + directions))
     destinations = np.array([list(geopy.distance.geodesic(kilometers=sqrt(x**2 + y**2)/1000).
-                             destination(origin, bearing=np.degrees(arctan2(x, y))))[:2]
+                             destination(origin, bearing=__bearing(x, y)))[:2]
                              for x, y, bearing in zip(positions[:, 0], positions[:, 1], bearings)])
 
     location_input = pd.read_csv(os.path.join(locus.path, "Location_input.csv"), encoding="utf-8", dtype='float64')
@@ -32,11 +39,13 @@ def evaluate_model(locus: PedestrianLocus, predictor):
 
     output.to_csv(os.path.join(locus.path, "Location_output.csv"), index=False)
 
-    eval_model(locus.path)
+    if compare:
+        eval_model(locus.path)
 
 
 if __name__ == "__main__":
-    dataset = PedestrianDataset(["Magnetometer", "Hand-Walk"], window_size=200,
+    dataset = PedestrianDataset(["Magnetometer", "Hand-Walk", "TestSet"], window_size=200,
                                 acceleration_filter=default_low_pass_filter)
 
-    evaluate_model(dataset["test_case0"], predictor=locus_predictor(pace_inference=magic_pace_inference))
+    evaluate_model(dataset["test1"],
+                   predictor=locus_predictor(pace_inference=magic_pace_inference), compare=False)

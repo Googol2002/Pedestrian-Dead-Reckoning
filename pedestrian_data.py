@@ -32,7 +32,7 @@ def default_low_pass_filter(data):
         data[ax] = signal.filtfilt(b, a, data[ax])  # data为要过滤的信号
 
 
-def default_mask(skip_len):
+def default_mask():
     def mask(y_frame: pd.DataFrame):
         quantile_10 = len(y_frame) - len(y_frame) * 9 // 10
         y_frame.iloc[quantile_10:, [1, 2, 5]] = np.nan
@@ -41,7 +41,7 @@ def default_mask(skip_len):
 
     return mask
 
-def do_not_mask(skip_len):
+def do_not_mask():
     def mask(y_frame: pd.DataFrame):
         return y_frame
 
@@ -49,10 +49,10 @@ def do_not_mask(skip_len):
 
 class PedestrianDataset(Iterable):
 
-    def __init__(self, scenarios: list, window_size=200, mask=None, skip_len=5,
+    def __init__(self, scenarios: list, window_size=200, mask=None, skip_len=0,
                  acceleration_filter=default_low_pass_filter):
         self.loci = dict()
-        mask = mask if mask else default_mask(5)
+        mask = mask if mask else default_mask()
 
         for paths in (zip(_scenarios[s],
                           [os.path.join(PEDESTRIAN_DATA_PATH, s, f) for f in _scenarios[s]])
@@ -110,6 +110,10 @@ class PedestrianLocus(Dataset):
             self.ans_relative_location, _ = self.__process_gps_data(self.ans, "relative_x (m)", "relative_y (m)")
         # 分别加工GPS数据
         self.relative_location, self.origin = self.__process_gps_data(self.y_frame, "relative_x (m)", "relative_y (m)")
+        # 利用最终的GPS数据矫正
+        self.latest_gps_index = len(self.y_frame.dropna()) - 1
+        self.latest_gps_data = (self.y_frame["Latitude (°)"][self.latest_gps_index],
+                                self.y_frame["Longitude (°)"][self.latest_gps_index])
 
         # 预处理阶段
         if acceleration_filter is not None:
@@ -170,7 +174,7 @@ class PedestrianLocus(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = PedestrianDataset(["Magnetometer"], window_size=200,
+    dataset = PedestrianDataset(["Magnetometer", "TestSet"], window_size=200,
                                 acceleration_filter=default_low_pass_filter)
 
     for name, locus in dataset:

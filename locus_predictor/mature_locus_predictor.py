@@ -49,14 +49,20 @@ def locus_predictor(attitude=None, walk_direction_bias=0,
                                  magnetometer_imu_frame, acceleration_imu_frame, time_frame,walk_direction_bias)
 
         info["magic"] = magic
+        # 行人路经预推演
         info["inference_times"] = 0
         inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
-        # 模拟走路
         walk_positions, walk_directions = __simulated_walk(locus, info, inference, walk_direction_bias)
         info["gps_positions_temp"], info["gps_directions_temp"] = __aligned_with_gps(locus, info, walk_positions, walk_directions)
+        # if info["gps_positions_temp"] > 0:
+        #     info["gps_positions_temp"] -= info["gps_positions_temp"][0]
+
+        # 行人路经最终推演
         info["inference_times"] = 1
         inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
         walk_positions, walk_directions = __simulated_walk(locus, info, inference, walk_direction_bias)
+        # if info["gps_positions_temp"] > 0:
+        #     info["gps_positions_temp"] -= (info["gps_positions_temp"][locus.latest_gps_index])
 
         # 插值
         return __aligned_with_gps(locus, info, walk_positions, walk_directions), info
@@ -135,10 +141,6 @@ def __aligned_with_gps(locus, info, walk_positions, walk_directions):
             (locus.y_frame["location_time"])
         directions = interp1d(walk_time, walk_directions, kind='cubic', axis=0, fill_value="extrapolate")\
             (locus.y_frame["location_time"])
-
-
-        if len(positions) > 0:
-            positions -= positions[0]
     else:
         positions = None
         directions = None
