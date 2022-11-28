@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-matplotlib.use('TkAgg')
+
 
 # 步行轨迹图
 CUT_BEGIN = 10  # 删掉前几秒的数据，因为GPS不准
@@ -49,17 +49,20 @@ def plot_gravity(sample:dict,title="TBD"):
     plt.plot(range(len(c)), c)
     plt.title(title)
 
-l, r = (10, 14)  # 画图范围
-dataset = PedestrianDataset(["Hand-Walk"], window_size=10000)
 
-for num, (name, locus) in enumerate(dataset):
-    if num in range(l, r):
-        print("正在遍历移动轨迹{}... \n".format(name))
-        plt.subplot(22 * 10 + num%10 + 1)
-        for sample in locus:
-            print(len(locus))
-            plot_gravity(sample,title="{}".format(name))
+if __name__ == "__main__":
+    matplotlib.use('TkAgg')
+    l, r = (10, 14)  # 画图范围
+    dataset = PedestrianDataset(["Hand-Walk"], window_size=10000)
+
+    for num, (name, locus) in enumerate(dataset):
+        if num in range(l, r):
+            print("正在遍历移动轨迹{}... \n".format(name))
+            plt.subplot(22 * 10 + num%10 + 1)
+            for sample in locus:
+                print(len(locus))
+                plot_gravity(sample,title="{}".format(name))
+                break
+        if num >= r:
             break
-    if num >= r:
-        break
-plt.show()
+    plt.show()

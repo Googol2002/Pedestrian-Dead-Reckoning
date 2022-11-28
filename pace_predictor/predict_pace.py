@@ -28,8 +28,6 @@ from locus_predictor.mature_locus_predictor import locus_predictor, __simulated_
 from plot_dataset import plot_locus
 from pace_predictor.acc_pace_inference import ema, pace_inference
 
-matplotlib.use('TkAgg')
-
 Train_rate = 0.1  # 使用前10%标记预测步幅
 
 
@@ -225,5 +223,7 @@ def plot_result(data):
 # plt.subplot(224)
 # plot_result("Hand-Walk-02-005")
 if __name__ == "__main__":
+    matplotlib.use('TkAgg')
+
     plot_result("Hand-Walk-02-004")
     plt.show()
