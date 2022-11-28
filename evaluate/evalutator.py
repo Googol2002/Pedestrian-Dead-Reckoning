@@ -18,7 +18,7 @@ def evaluate_model(locus: PedestrianLocus, predictor):
     origin = geopy.Point(*locus.origin)
     bearings = np.rad2deg(pi/2 - (pi/2 + directions))
     destinations = np.array([list(geopy.distance.geodesic(kilometers=sqrt(x**2 + y**2)/1000).
-                             destination(origin, bearing=bearing))[:2]
+                             destination(origin, bearing=np.degrees(arctan2(x, y))))[:2]
                              for x, y, bearing in zip(positions[:, 0], positions[:, 1], bearings)])
 
     location_input = pd.read_csv(os.path.join(locus.path, "Location_input.csv"), encoding="utf-8", dtype='float64')

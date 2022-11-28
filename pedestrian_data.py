@@ -149,8 +149,8 @@ class PedestrianLocus(Dataset):
     def __process_gps_data(source_frame, x_label, y_label):
         # 前几个数据点有噪声啊
         relative_location = source_frame[["Time (s)", "Latitude (°)", "Longitude (°)"]].dropna()
-        origin_latitude, origin_longitude = np.mean(relative_location["Latitude (°)"][:2]), \
-                                            np.mean(relative_location["Longitude (°)"][:2])
+        origin_latitude, origin_longitude = np.mean(relative_location["Latitude (°)"][:1]), \
+                                            np.mean(relative_location["Longitude (°)"][:1])
 
         origin = (origin_latitude, origin_longitude)
         if not math.isnan(origin_latitude) and not math.isnan(origin_latitude):
