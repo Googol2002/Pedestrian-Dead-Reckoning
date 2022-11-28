@@ -58,7 +58,6 @@ def locus_predictor(attitude=None, walk_direction_bias=0,
         inference = pace_inference(info) if pace_inference else lambda x, y: PACE_STEP
         walk_positions, walk_directions = __simulated_walk(locus, info, inference, walk_direction_bias)
 
-
         # 插值
         return __aligned_with_gps(locus, info, walk_positions, walk_directions), info
 
