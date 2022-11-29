@@ -36,7 +36,8 @@ Train_rate = 0.1  # 使用前10%标记预测步幅
 # def baseline_pace_inference(info):
 #     locus=info['locus']
 #     transform = 1
-#
+#     global Train_rate
+#     Train_rate = 1  # 已切分
 #     if (info["inference_times"] == 1):
 #         positions = info["gps_positions_temp"]
 #         positions=positions-positions[0]
@@ -44,12 +45,15 @@ Train_rate = 0.1  # 使用前10%标记预测步幅
 #         positions=positions.T
 #         Lati = locus.relative_location["relative_x (m)"].to_numpy()
 #         Longi = locus.relative_location["relative_y (m)"].to_numpy()
-#         last_index = int(Train_rate * len(Lati)) - 1
-#         start_to_end_positions = np.linalg.norm(np.array([positions[0][last_index], positions[1][last_index]]) - np.array([positions[0][0], positions[1][0]]))
+#
+#         last_index = int(positions.shape[1]*0.1-5)-1
+#         #print(last_index)
+#         print(last_index)
+#         start_to_end_positions = np.linalg.norm(np.array([positions[0][10*last_index], positions[1][10*last_index]]) - np.array([positions[0][0], positions[1][0]]))
 #         start_to_end_GPS = np.linalg.norm(np.array([Lati[last_index], Longi[last_index]]) - np.array([Lati[0], Longi[0]]))
-#         #print("Compare before correction:",start_to_end_positions,start_to_end_GPS)
+#         print("Compare before correction:",start_to_end_positions,start_to_end_GPS)
 #         transform = start_to_end_GPS/start_to_end_positions#pace整体乘一个比例
-#         #print(transform)
+#         print(transform)
 #
 #
 #     #总位移除步数
@@ -61,7 +65,7 @@ Train_rate = 0.1  # 使用前10%标记预测步幅
 #     dist_list=[]
 #     dist_list_whole=[]
 #     normal_step=0
-#     for i in range(0,int(len(Lati) * Train_rate)):
+#     for i in range(0,int(Train_rate * len(Lati)) - 2):
 #         vec1=np.array([Lati[i],Longi[i]])
 #         vec2=np.array([Lati[i+1],Longi[i+1]])
 #         dist = np.linalg.norm(vec1 - vec2)#欧氏距离
@@ -85,16 +89,16 @@ Train_rate = 0.1  # 使用前10%标记预测步幅
 #     return inference
 #
 #
-# def idiot_pace_inference(info):
-#     def inference(index, peak):
-#         return 0.8
-#     return inference
+def idiot_pace_inference(info):
+    def inference(index, peak):
+        return 0.8
+    return inference
 
 
 def magic_pace_inference(info):
     accelerations = info["accelerations"]
     magic_number = info['magic']
-    print(magic_number)
+    #print(magic_number)
     a_vec = np.sqrt(np.power(accelerations[:, 0], 2) + np.power(accelerations[:, 1], 2))
     time = info["time"]
     peaks_index, _ = find_peaks(a_vec, distance=MIN_PERIOD, prominence=PROMINENCE)
@@ -117,6 +121,12 @@ def magic_pace_inference(info):
 
     return inference
 
+def tranform_x(locus,r):
+    x = r[0][:, 0]
+    x*=-1
+    r[0][:, 0]=x
+    return r
+
 
 def save_output(position, location_time, output_path, locus):
     df = pd.DataFrame(position)
@@ -137,32 +147,42 @@ def save_output(position, location_time, output_path, locus):
 
 
 def search_func_bias(walk_direction_bias, *args):
-    locus, location_time, output_path = args
-    predictor_base = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=walk_direction_bias)
+    print("bias:",walk_direction_bias)
+    locus, location_time, output_path,euler,transform = args
+    predictor_base = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=walk_direction_bias
+                                     ,euler=euler,transform=transform)
     (position, direction), info = predictor_base(locus, )
     return save_output(position, location_time, output_path, locus)
 
 
+def search_func_magic_3(all_magic, *args):
+    locus, location_time, output_path,euler,transform = args
+    magic = all_magic
+    predictor_base = locus_predictor(pace_inference=magic_pace_inference,
+                                     walk_direction_bias=3, magic=magic,euler=euler,transform=transform)
+    (position, direction), info = predictor_base(locus, )
+
+    return save_output(position, location_time, output_path, locus)
 def search_func_magic(all_magic, *args):
-    locus, location_time, output_path = args
+    locus, location_time, output_path ,euler,transform= args
     walk_direction_bias = all_magic[0]
     magic = all_magic[-3:]
     predictor_base = locus_predictor(pace_inference=magic_pace_inference,
-                                     walk_direction_bias=walk_direction_bias, magic=magic)
+                                     walk_direction_bias=walk_direction_bias, magic=magic,euler=euler,transform=transform)
     (position, direction), info = predictor_base(locus, )
 
     return save_output(position, location_time, output_path, locus)
 
 
-def plot_result(data):
+def plot_result(data, transform=None, euler="ZXY"):
     #data_dir="Hand-Walk"
-    data_dir="test_case0"
+    #data_dir="test_case0"
+    data_dir = "TestSet"
+
     path_dir="C:\\Users\\Shawn\\Desktop\\python_work\\pytorch\\Dataset-of-Pedestrian-Dead-Reckoning"
     path =os.path.join(path_dir, data_dir)
-    #path = "C:\\Users\\Shawn\\Desktop\\python_work\\pytorch\\Dataset-of-Pedestrian-Dead-Reckoning\\test_case0"
-    #path = "C:\\Users\\Shawn\\Desktop\\python_work\\pytorch\\Dataset-of-Pedestrian-Dead-Reckoning\\TestSet"
     output_path = os.path.join(path, data)
-    dataset = PedestrianDataset([data_dir], window_size=1000, mask=do_not_mask())
+    dataset = PedestrianDataset([data_dir], window_size=1000, mask=do_not_mask(),skip_len=8)
     locus = dataset[data]
     location_time = locus.y_frame["location_time"]
 
@@ -176,86 +196,144 @@ def plot_result(data):
     # bias=bias['x']
 
     # plot baseline
+    # bias=0
     # predictor_base = locus_predictor(pace_inference=baseline_pace_inference, walk_direction_bias=bias)
     # (position,direction),info=predictor_base(locus,)
+    # position-=position[0]
     # save_output(position,location_time,output_path,locus)
-    # plot_locus(position.T[0],position.T[1],label='bias:{}'.format(bias))
+    # plot_locus(position.T[0],position.T[1],label='baseline')
+
+    # predictor_base = locus_predictor(pace_inference=idiot_pace_inference, walk_direction_bias=0)
+    # (position, direction), info = predictor_base(locus, )
+    # position -= position[0]
+    # save_output(position, location_time, output_path, locus)
+    # plot_locus(position.T[0], position.T[1], label='idiot')
     @record_time
     def find_bias():
-        # 寻最优bias:针对magic_pace_inference
-        x0 = np.asarray(0)
-        bias = minimize(search_func_bias, x0, args=(locus, location_time, output_path))
+        #寻最优bias:针对magic_pace_inference
+        x0 = np.asarray(1.83)
+        bias = minimize(search_func_bias, x0, args=(locus, location_time, output_path,euler,transform))
         print("bias", bias)
         bias ,error= bias['x'],bias['fun']
 
-        #bias=[0.35821358]
-        predictor_acc = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=bias)
+        #bias=1.9
+        predictor_acc = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=bias
+                                        ,euler=euler,transform=transform)
         (position, direction), info = predictor_acc(locus)
+        position -= position[0]
         save_output(position, location_time, output_path, locus)
-        plot_locus(position.T[0], position.T[1], label='bias_only:{}'.format(error))
+        plot_locus(position.T[0], position.T[1], label='bias_only:{}'.format(bias))
 
     @record_time
     def find_magic():
         # 寻最优magic：针对magic_pace_inference
-        x0 = np.asarray([Magic_A,Magic_B,Magic_C])
-        # all_magic = scipy.optimize.fmin_cg(search_func_magic, x0, args=(locus, location_time, output_path))
-        magic = minimize(search_func_magic, x0, args=(locus, location_time, output_path)
-                             , tol=1e-2, options={'maxiter': 20, 'disp': True})
-        print("magic", magic)
-        magic,error = magic['x'],magic['fun']
-        # magic=[0.36171501, 0.00148213, 0.5621904 ]
-        # error = 1
+        # x0 = np.asarray([Magic_A,Magic_B,Magic_C])
+        # # all_magic = scipy.optimize.fmin_cg(search_func_magic, x0, args=(locus, location_time, output_path))
+        # magic = minimize(search_func_magic_3, x0, args=(locus, location_time, output_path,euler,transform)
+        #                      , tol=1e-2, options={'maxiter': 20, 'disp': True})
+        # print("magic", magic)
+        # magic,error = magic['x'],magic['fun']
+
+        #[ 3 ,  0.4943875462957725 ,  -0.030123552013203034 ,  -6.794281849340825 ]
+        magic=[Magic_A,Magic_B,Magic_C]#[0.14715112, 0.01645682, 4.98857718]#[0.36171501, 0.00148213, 0.5621904 ]
+        error = 1
+        #magic = [0.37431854577439605, -0.03114731933383491, -6.924766235063856]
         predictor_acc = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=0,
-                                        magic=magic)
+                                        magic=magic,euler=euler,transform=transform)
         (position, direction), info = predictor_acc(locus)
+        position -= position[0]
         save_output(position, location_time, output_path, locus)
-        plot_locus(position.T[0], position.T[1], label='magic_only:{}'.format(error))
+        plot_locus(position.T[0], position.T[1], label='origin'.format(error))
+
 
     @record_time
     def find_all_magic():
         # 寻所有参数：针对magic_pace_inference
-        x0 = np.asarray([0, Magic_A,Magic_B,Magic_C])
+        x0 = np.asarray([1, Magic_A,Magic_B,Magic_C])
         # all_magic = scipy.optimize.fmin_cg(search_func_magic, x0, args=(locus, location_time, output_path))
-        all_magic = minimize(search_func_magic, x0, args=(locus, location_time, output_path)
-                             , tol=1e-2, options={'maxiter': 20, 'disp': True})
+        all_magic = minimize(search_func_magic, x0, args=(locus, location_time, output_path,euler,transform)
+                             , tol=1e-1, options={'disp': True})#'maxiter': 20,
         print("all_magic", all_magic)
         all_magic,error = all_magic['x'],all_magic['fun']
-
-        #all_magic=[  0.30234795,  -0.42075507, 229.81865892,  -0.89270903]
         predictor_acc = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=all_magic[0],
-                                        magic=all_magic[1:])
+                                        magic=all_magic[1:],euler=euler,transform=transform)
         (position, direction), info = predictor_acc(locus)
+        position -= position[0]
         save_output(position, location_time, output_path, locus)
         plot_locus(position.T[0], position.T[1], label='acc_pace:{}'.format(error))
 
-    def plot_GPS():
-        # plot GPS
-        # Lati = locus.relative_location["relative_x (m)"].to_numpy()
-        # Longi = locus.relative_location["relative_y (m)"].to_numpy()
+    @record_time
+    def run_magic():#测试成熟参数
+        #读取文件名
+        all_magic = [0,Magic_A,Magic_B,Magic_C]
+        predictor_acc = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=all_magic[0],
+                                        magic=all_magic[1:])
+        _, info = predictor_acc(locus)
+        test_file = locus.path[-6:]
+        if test_file.startswith('\\'):
+            test_file = test_file[-5:]
+        #得到所有magic参数
+        all_magic=info['bias'][test_file]
+        predictor_acc = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=all_magic[0],
+                                        magic=all_magic[1:],euler=euler,transform=transform)
+        (position, direction), info = predictor_acc(locus)
+        position -= position[0]
+        save_output(position, location_time, output_path, locus)
+        plot_locus(position.T[0], position.T[1], label='acc_pace:{}'.format(test_file))
+
+    def plot_ans_GPS():
         Lati = locus.ans_relative_location["relative_x (m)"].to_numpy()
         Longi = locus.ans_relative_location["relative_y (m)"].to_numpy()
         plot_locus(Lati, Longi, label='GPS')
         plt.title(data)
+    def plot_GPS():
+        Lati = locus.relative_location["relative_x (m)"].to_numpy()
+        Longi = locus.relative_location["relative_y (m)"].to_numpy()
+        print("len(GPS):",len(Lati))
+        plot_locus(Lati, Longi, label='GPS')
+        plt.title(data)
 
     #find_bias()
-    find_magic()
-    # find_all_magic()
+    #find_magic_one()
+    #find_magic()
+    #find_all_magic()
+    run_magic()
     plot_GPS()
+    #plot_ans_GPS()
 
-# plot_result("Hand-Walk-02-001")#[-2.00753911e-01,  5.69380802e-01, -8.49469774e-05,  5.27603339e-02]
-# plot_result("Hand-Walk-02-002")#[ 1.50019425,  0.89199096, -0.00565934, -2.25026012]
 
 if __name__ == "__main__":
     matplotlib.use('TkAgg')
-    # 78不要
-    # plt.subplot(221)
-    # plot_result("Hand-Walk-02-006")
-    # plt.subplot(222)
-    # plot_result("Hand-Walk-02-009")
-    # plt.subplot(223)
-    # plot_result("Hand-Walk-02-003")
-    # plt.subplot(224)
-    # plot_result("Hand-Walk-02-005")
-    #plot_result("Hand-Walk-02-004")
-    plot_result("test_case0-00-000")
+
+    # plt.subplot(231)
+    # plot_result("test1",euler="ZYX")
+    #
+    # plt.subplot(232)
+    # plot_result("test2",euler="ZYX",transform=tranform_x)
+    #
+    # plt.subplot(233)
+    # plot_result("test3")
+    # plt.subplot(234)
+    #
+    # plt.subplot(235)
+    # plot_result("test5",euler="ZYX")#需翻转
+    #plt.subplot(236)
+    #plot_result("test6",euler="ZYX")
+
+
+
+    plt.subplot(231)
+    plot_result("test7")#试试翻转,euler="ZYX"
+    plt.subplot(232)
+    plot_result("test8")
+
+    plt.subplot(233)
+    plot_result("test9")#试试翻转
+
+    plt.subplot(234)
+    plot_result("test10")  # 需翻转
+    plt.subplot(235)
+    plot_result("test11",euler="ZYX")
+
+
     plt.show()
