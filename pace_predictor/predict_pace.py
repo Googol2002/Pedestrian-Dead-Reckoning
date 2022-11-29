@@ -176,20 +176,38 @@ def get_file_from_locus(locus):
         test_file = test_file[-5:]
     return test_file
 
+def run_magic(locus):
+    """
+    运行成熟参数
+    :param locus:
+    :return: position,direction
+    """
+    # 读取文件名
+    predictor= locus_predictor()
+    _, info = predictor(locus)
+    test_file = get_file_from_locus(locus)
+    # 得到所有magic参数
+    all_magic = info['bias'][test_file]
+    (euler, transform) = info['args'][test_file]
+    predictor_acc = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=all_magic[0],
+                                    magic=all_magic[1:], euler=euler, transform=transform)
+    (position, direction), info = predictor_acc(locus)
+    position -= position[0]
+    #计算损失，输出文件
+    #save_output(position, location_time, output_path, locus)
+    plot_locus(position.T[0], position.T[1], label='predict:{}'.format(test_file))
+    return position,direction
 
 def plot_result(data, transform=None, euler="ZXY"):  #
     # data_dir="Hand-Walk"
     # data_dir="test_case0"
     data_dir = "TestSet"
-
     path_dir = "C:\\Users\\Shawn\\Desktop\\python_work\\pytorch\\Dataset-of-Pedestrian-Dead-Reckoning"
     path = os.path.join(path_dir, data_dir)
     output_path = os.path.join(path, data)
     dataset = PedestrianDataset([data_dir], window_size=1000, mask=do_not_mask(), skip_len=8)
     locus = dataset[data]
     location_time = locus.y_frame["location_time"]
-
-    # predictor_base = locus_predictor(pace_inference=baseline_pace_inference,walk_direction_bias=0.27)
 
     # 寻最优bias:针对baseline
     # x0 = np.asarray(0)
@@ -262,25 +280,6 @@ def plot_result(data, transform=None, euler="ZXY"):  #
         save_output(position, location_time, output_path, locus)
         plot_locus(position.T[0], position.T[1], label='acc_pace:{}'.format(error))
 
-    @record_time
-    def run_magic():  # 测试成熟参数
-        # 读取文件名
-        predictor_acc = locus_predictor(
-            pace_inference=magic_pace_inference)  # , walk_direction_bias=all_magic[0],magic=all_magic[1:]
-
-        (position, direction), info = predictor_acc(locus)
-        test_file = get_file_from_locus(locus)
-        # 得到所有magic参数
-        all_magic = info['bias'][test_file]
-        (euler, transform) = info['args'][test_file]
-        print(euler, transform)
-        predictor_acc = locus_predictor(pace_inference=magic_pace_inference, walk_direction_bias=all_magic[0],
-                                        magic=all_magic[1:], euler=euler, transform=transform)
-        (position, direction), info = predictor_acc(locus)
-        position -= position[0]
-        save_output(position, location_time, output_path, locus)
-        plot_locus(position.T[0], position.T[1], label='acc_pace:{}'.format(test_file))
-
     def plot_ans_GPS():
         Lati = locus.ans_relative_location["relative_x (m)"].to_numpy()
         Longi = locus.ans_relative_location["relative_y (m)"].to_numpy()
@@ -298,7 +297,7 @@ def plot_result(data, transform=None, euler="ZXY"):  #
     # find_magic_one()
     # find_magic()
     # find_all_magic()
-    run_magic()
+    run_magic(locus)
     plot_GPS()
     # plot_ans_GPS()
 
