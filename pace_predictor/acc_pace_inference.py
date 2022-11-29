@@ -1,5 +1,4 @@
 import math
-
 from scipy.signal import find_peaks
 import numpy as np
 
@@ -23,8 +22,8 @@ def pace_inference(info):
         H = peak - valley
         magic_num=magic_a - magic_b * W + magic_c * math.sqrt(H)
         steplength.append(magic_num)
-    steplength = np.array(steplength).clip(0.6, 0.75)
-    print("steplength.mean()",steplength.mean())
+    steplength = np.array(steplength)#.clip(0.6, 0.75)
+   # print("pace predict mean:",steplength.mean())
 
     def inference(index, peak):
         a_earth = accelerations[peak]

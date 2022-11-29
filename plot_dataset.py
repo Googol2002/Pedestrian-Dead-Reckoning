@@ -22,6 +22,18 @@ def plot_locus(Lati,Longi,label="TBD",cut_begin=CUT_BEGIN):
     plt.plot(Lati, Longi,'+', markersize=1, label=label, )#
     plt.legend(loc=0)
 
+def plot_locus_realtime(Lati,Longi,label="TBD",cut_begin=CUT_BEGIN):
+    plt.clf()  # 清除之前画的图
+    Lati = Lati[cut_begin:]
+    Longi = Longi[cut_begin:]
+    # plt.xlabel("Latitude (°)")
+    # plt.ylabel("Longitude (°)")
+    plt.text(Lati[0], Longi[0], 's', fontsize=10)
+    plt.text(Lati[-1], Longi[-1], 'e', fontsize=10)
+    plt.plot(Lati, Longi,'+', markersize=1, label=label, )#
+    plt.legend(loc=0)
+    plt.pause(0.001)  # 暂停一段时间，不然画的太快会卡住显示不出来
+    plt.ioff()  # 关闭画图窗口
 
 
 
@@ -59,11 +71,9 @@ if __name__ == "__main__":
         if num in range(l, r):
             print("正在遍历移动轨迹{}... \n".format(name))
             plt.subplot(33 * 10 + num % 10 + 1)
-            locus_pair = np.array(list(zip(locus.y_frame["Latitude (°)"], locus.y_frame["Longitude (°)"])))
+            locus_pair = np.array(list(zip(locus.y_frame["Longitude (°)"], locus.y_frame["Latitude (°)"])))
             print("轨迹长度: ", len(locus_pair))
-            Lati = locus_pair.T[0]
-            Longi = locus_pair.T[1]
-            plot_locus(Lati,Longi, label="{}".format(name))
+            plot_locus(locus_pair.T[0],locus_pair.T[1], label="{}".format(name))
         if num >= r:
             break
     plt.show()
