@@ -11,6 +11,7 @@ def eval_model(test_path):
     dir_error = get_dir_error(gt, pred)
     print("Distances error: ", dist_error)
     print("Direction error: ", dir_error)
+    return (dist_error,dir_error)
 
 
 def get_dir_error(gt, pred):
