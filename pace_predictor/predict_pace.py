@@ -295,8 +295,8 @@ def plot_result(data, transform=None, euler="ZXY"):  #
 
     # find_bias()
     # find_magic_one()
-    # find_magic()
-    # find_all_magic()
+    #find_magic()
+    #find_all_magic()
     run_magic(locus)
     plot_GPS()
     # plot_ans_GPS()
@@ -305,33 +305,31 @@ def plot_result(data, transform=None, euler="ZXY"):  #
 if __name__ == "__main__":
     matplotlib.use('TkAgg')
 
-    # plt.subplot(231)
+    # plt.subplot(331)
     # plot_result("test1")#,euler="ZYX"
     #
-    # plt.subplot(232)
+    # plt.subplot(332)
     # plot_result("test2")#,euler="ZYX",transform=tranform_x
     #
-    # plt.subplot(233)
+    # plt.subplot(333)
     # plot_result("test3")
-    # plt.subplot(234)
+    # plt.subplot(334)
+    # plot_result("test5")  # 需翻转,euler="ZYX"
+    # plt.subplot(335)
+    # plot_result("test6")  # ,euler="ZYX"
     #
-    # plt.subplot(235)
-    # plot_result("test5")#需翻转,euler="ZYX"
+    # plt.subplot(336)
+    # plot_result("test7")
+    #
+    # plt.subplot(337)
+    # plot_result("test8")
+    # plt.subplot(338)
+    # plot_result("test9")
+    #
+    # plt.subplot(339)
+    # plot_result("test10")
 
-    # plt.subplot(236)
-    # plot_result("test6")#,euler="ZYX"
-
-    plt.subplot(231)
-    plot_result("test7")
-    plt.subplot(232)
-    plot_result("test8")
-
-    plt.subplot(233)
-    plot_result("test9")
-
-    plt.subplot(234)
-    plot_result("test10")
-    plt.subplot(235)
-    plot_result("test11")  # ,euler="ZYX"
+    #plot_result("test11")  # ,euler="ZYX"
+    plot_result("test0")
 
     plt.show()
