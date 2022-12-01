@@ -2,7 +2,7 @@
 import math
 import os
 from math import sqrt, degrees
-
+import pmdarima as pm
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -11,9 +11,8 @@ from numpy import arctan2, pi
 
 from evaluate.test import eval_model
 from locus_predictor.mature_locus_predictor import locus_predictor
-from pace_predictor.predict_pace import magic_pace_inference
 from pedestrian_data import PedestrianLocus, PedestrianDataset, default_low_pass_filter
-
+import statsmodels.api as sm
 from geopy.distance import geodesic
 import geopy.distance
 
@@ -41,6 +40,34 @@ def evaluate_model(locus: PedestrianLocus, pace_inference, compare=True):
     bearings = np.rad2deg(pi / 2 - (pi / 2 + directions))
     bearings += (bearings < 0) * 360
     bearings %= 360
+
+    # ARIMA 建模误差项 扔掉前8个
+    # gt = locus.y_frame.iloc[:, 5].dropna()
+    # head_10_error = gt[2:] - bearings[2:len(gt)]
+    # ARIMA = pm.auto_arima(head_10_error).fit(head_10_error)
+    # lag = ARIMA.predict(len(bearings) - len(gt))  # 补偿项
+    # # ARIMA = sm.tsa.arima.ARIMA(head_10_error, order=(2, 1, 1)).fit()
+    # # lag = ARIMA.forecast(len(bearings) - len(gt))  # 补偿项
+    # bearings[len(gt):] += lag
+    # bearings += (bearings < 0) * 360
+    # bearings %= 360
+
+    # ARIMA 建模误差项 扔掉前8个
+    # gt1 = locus.y_frame.iloc[:, 0].dropna()
+    # gt2 = locus.y_frame.iloc[:, 1].dropna()
+    # head_10_error_1 = gt1[5:] - positions[5:len(gt1), 0]
+    # head_10_error_2 = gt2[5:] - positions[5:len(gt2), 1]
+    # ARIMA_1 = pm.auto_arima(head_10_error_1).fit(head_10_error_1)
+    # ARIMA_2 = pm.auto_arima(head_10_error_2).fit(head_10_error_2)
+    # lag_1 = ARIMA_1.predict(len(positions) - len(gt))  # 补偿项
+    # lag_2 = ARIMA_2.predict(len(positions) - len(gt))  # 补偿项
+    # # ARIMA = sm.tsa.arima.ARIMA(head_10_error, order=(2, 1, 1)).fit()
+    # # lag = ARIMA.forecast(len(bearings) - len(gt))  # 补偿项
+    # positions[len(gt):, 0] += lag_1
+    # positions[len(gt):, 1] += lag_2
+    # bearings += (bearings < 0) * 360
+    # bearings %= 360
+
     destinations = np.array([list(geopy.distance.geodesic(kilometers=sqrt(x ** 2 + y ** 2) / 1000).
                                   destination(origin, bearing=__bearing(x, y)))[:2]
                              for x, y, bearing in zip(positions[:, 0], positions[:, 1], bearings)])
