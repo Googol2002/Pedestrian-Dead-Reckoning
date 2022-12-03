@@ -10,7 +10,7 @@ from numpy import arctan2, pi
 
 from evaluate.test import eval_model
 from locus_predictor.mature_locus_predictor import locus_predictor
-from pace_predictor.predict_pace import magic_pace_inference
+from pace_predictor.predict_pace import magic_pace_inference, run_magic
 from pedestrian_data import PedestrianLocus, PedestrianDataset, default_low_pass_filter
 
 from geopy.distance import geodesic
@@ -21,11 +21,13 @@ def __bearing(x, y):
     return math.degrees(arctan2(x, y))
 
 
-def evaluate_model(locus: PedestrianLocus, predictor, compare=True):
-    (positions, directions), properties = predictor(locus)
+def evaluate_model(locus: PedestrianLocus, num, fixed_magic, compare=True):
+    # (positions, directions), properties = predictor(locus)
+    positions, directions = run_magic(locus, fixed_magic=fixed_magic)
     positions = positions - positions[locus.latest_gps_index]
     origin = geopy.Point(*locus.latest_gps_data)
     bearings = np.rad2deg(pi/2 - (pi/2 + directions))
+    bearings += (bearings < 0) * 360
     destinations = np.array([list(geopy.distance.geodesic(kilometers=sqrt(x**2 + y**2)/1000).
                              destination(origin, bearing=__bearing(x, y)))[:2]
                              for x, y, bearing in zip(positions[:, 0], positions[:, 1], bearings)])
@@ -38,26 +40,29 @@ def evaluate_model(locus: PedestrianLocus, predictor, compare=True):
         destinations, np.expand_dims(bearings, axis=1)), axis=1)
     output.iloc[location_input_dropped.index] = location_input_dropped
 
-    output.to_csv(os.path.join(locus.path, "Location_output.csv"), index=False)
+    output.to_csv(os.path.join(locus.path, "Location_test_case_{}.csv".format(num)), index=False)
+    output.to_csv(os.path.join(locus.path, "Location_output.csv".format(num)), index=False)
+
 
     if compare:
         eval_model(locus.path)
 
 
-def plot_model_output(locus: PedestrianLocus):
-    output_frame = pd.read_csv(os.path.join(locus.path, "Location_output.csv"))
-    input_frame = pd.read_csv(os.path.join(locus.path, "Location_input.csv"))
+def plot_model_output(locus: PedestrianLocus, name, num):
+    output_frame = pd.read_csv(os.path.join(locus.path, "Location_test_case_{}.csv".format(num)))
+    input_frame = pd.read_csv(os.path.join(locus.path, "Location.csv"))
 
     plt.plot(output_frame["Longitude (°)"], output_frame["Latitude (°)"], label="Output")
-    plt.plot(input_frame["Longitude (°)"], input_frame["Latitude (°)"], label="Input")
+    plt.plot(input_frame["Longitude (°)"], input_frame["Latitude (°)"], label="Input", linestyle="dashed")
+    plt.title(name)
     plt.legend()
     plt.show()
 
 
 if __name__ == "__main__":
-    dataset = PedestrianDataset(["Magnetometer", "Hand-Walk", "TestSet"], window_size=200,
+    dataset = PedestrianDataset(["Test", "TestSet"], window_size=200,
                                 acceleration_filter=default_low_pass_filter)
 
-    evaluate_model(dataset["test4"],
-                   predictor=locus_predictor(pace_inference=magic_pace_inference), compare=False)
-    plot_model_output(dataset["test4"])
+    num = 0
+    evaluate_model(dataset["test{}".format(num)], num, True, compare=True)
+    plot_model_output(dataset["test{}".format(num)], "test{}".format(num), num)

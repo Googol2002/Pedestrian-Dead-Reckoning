@@ -174,7 +174,7 @@ class PedestrianLocus(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = PedestrianDataset(["Magnetometer", "TestSet"], window_size=200,
+    dataset = PedestrianDataset(["Bag-Ride", "Bag-Walk"], window_size=200,
                                 acceleration_filter=default_low_pass_filter)
 
     for name, locus in dataset:

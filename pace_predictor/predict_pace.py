@@ -176,7 +176,7 @@ def get_file_from_locus(locus):
         test_file = test_file[-5:]
     return test_file
 
-def run_magic(locus,location_time,output_path,find_bias=False,fixed_magic=False):
+def run_magic(locus,location_time=None,output_path=None,find_bias=False,fixed_magic=False):
     """
     运行成熟参数
     :param locus:
@@ -196,8 +196,8 @@ def run_magic(locus,location_time,output_path,find_bias=False,fixed_magic=False)
     (position, direction), info = predictor_acc(locus)
     position -= position[0]
     #计算损失，输出文件
-    compute_error(position, location_time, output_path, locus)
-    plot_locus(position.T[0], position.T[1], label='predict:{}'.format(test_file))
+    # compute_error(position, location_time, output_path, locus)
+    # plot_locus(position.T[0], position.T[1], label='predict:{}'.format(test_file))
     if find_bias:
         #固定参数找最好bias
         x0 = all_magic[0]
