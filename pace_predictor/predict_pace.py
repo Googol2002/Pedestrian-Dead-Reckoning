@@ -197,7 +197,7 @@ def run_magic(locus,location_time=None,output_path=None,find_bias=False,fixed_ma
     position -= position[0]
     #计算损失，输出文件
     # compute_error(position, location_time, output_path, locus)
-    # plot_locus(position.T[0], position.T[1], label='predict:{}'.format(test_file))
+    plot_locus(position.T[0], position.T[1], label='predict:{}'.format(test_file))
     if find_bias:
         #固定参数找最好bias
         x0 = all_magic[0]
@@ -219,7 +219,7 @@ def plot_result(data, transform=None, euler="ZXY"):  #
     path_dir = "C:\\Users\\Shawn\\Desktop\\python_work\\pytorch\\Dataset-of-Pedestrian-Dead-Reckoning"
     path = os.path.join(path_dir, data_dir)
     output_path = os.path.join(path, data)
-    dataset = PedestrianDataset([data_dir], window_size=1000, mask=do_not_mask(), skip_len=0)
+    dataset = PedestrianDataset([data_dir], window_size=1000, mask=do_not_mask(), skip_len=32)
     locus = dataset[data]
     location_time = locus.y_frame["location_time"]
 
@@ -311,7 +311,7 @@ def plot_result(data, transform=None, euler="ZXY"):  #
     # find_magic_one()
     #find_magic()
     #find_all_magic()
-    run_magic(locus,location_time,output_path,find_bias=False,fixed_magic=False)
+    run_magic(locus,location_time,output_path,find_bias=True,fixed_magic=True)
     plot_GPS()
     #plot_ans_GPS()
 
@@ -341,9 +341,9 @@ if __name__ == "__main__":
     # plot_result("test9")
     #
     # plt.subplot(339)
-    # plot_result("test10")
+    #plot_result("test10",euler="ZYX",transform=)
 
-    #plot_result("test11")  # ,euler="ZYX"
-    plot_result("test0")
+    plot_result("test11")  # ,euler="ZYX"
+    #plot_result("test0")
 
     plt.show()
